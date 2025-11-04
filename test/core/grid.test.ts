@@ -24,3 +24,22 @@ test("Grid match", () => {
   const matches = grid.match(Grid.parse("x-/-x"));
   expect(matches).toEqual([2, 5]);
 });
+
+test("Grid components", () => {
+  const grid = Grid.parse("xxx-/-x-x/x-x-");
+  expect(grid.components).toEqual([[0, 1, 2, 5], [7], [8], [10]]);
+  expect(grid.cellToComponent).toEqual([
+    0,
+    0,
+    0,
+    null,
+    null,
+    0,
+    null,
+    1,
+    2,
+    null,
+    3,
+    null,
+  ]);
+});

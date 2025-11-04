@@ -80,7 +80,7 @@ class Renderer {
       grid.rows * this.cellSize
     );
 
-    const overlay = Array.from({ length: grid.cells.length }, () => false);
+    const overlay = new Array(grid.cells.length).fill(false);
     for (const [n, pattern] of this.game.patterns.entries()) {
       for (const i of this.game.matches[n]) {
         for (let j = 0; j < pattern.rows * pattern.cols; j++) {

@@ -3,14 +3,51 @@ export enum Cell {
   X = 1,
 }
 
+/**
+ * A rectangular grid of cells.
+ *   rows: major
+ *   cols: minor
+ */
 export class Grid {
   // Creation
+  readonly components: number[][] = [];
+  readonly cellToComponent: (number | null)[];
 
   constructor(
     readonly rows: number,
     readonly cols: number,
     readonly cells: Cell[]
-  ) {}
+  ) {
+    // Depth first search to find connected components of X cells
+    this.cellToComponent = new Array(rows * cols).fill(null);
+    for (let i = 0; i < rows * cols; i++) {
+      if (cells[i] == Cell.X && this.cellToComponent[i] === null) {
+        const component = this.components.length;
+        this.components.push([]);
+        const visit = (idx: number) => {
+          if (cells[idx] == Cell.X && this.cellToComponent[idx] === null) {
+            this.components[component].push(idx);
+            this.cellToComponent[idx] = component;
+            const r = Math.floor(idx / cols);
+            const c = idx % cols;
+            if (c >= 1) {
+              visit(idx - 1);
+            }
+            if (c <= cols - 2) {
+              visit(idx + 1);
+            }
+            if (r >= 1) {
+              visit(idx - cols);
+            }
+            if (r <= rows - 2) {
+              visit(idx + cols);
+            }
+          }
+        };
+        visit(i);
+      }
+    }
+  }
 
   static random(rows: number, cols: number): Grid {
     return new Grid(
