@@ -13,8 +13,25 @@
   box-sizing: border-box;
   padding: 8px;
 }
-#score {
+#text-round-score {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+#text-round-score[data-status="win"] {
+  background-color: #a0ffa0;
+}
+#text-round-score[data-status="lose"] {
+  background-color: #ffa0a0;
+}
+.sidebar-row {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.score {
   font-size: 20px;
+  display: inline-block;
 }
 
 /* General */
@@ -24,6 +41,7 @@ button {
   min-width: 40px;
   background-color: #fff;
   font-weight: bold;
+  display: inline-block;
 }
 button:hover {
   background-color: #f0f0f0;

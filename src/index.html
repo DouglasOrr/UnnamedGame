@@ -12,10 +12,16 @@
     <div id="root">
       <canvas id="canvas-main" width="450" height="450"></canvas>
       <div id="sidebar">
-        <button id="btn-new">Shuffle</button>
-        <button id="btn-undo">↶</button>
-        <button id="btn-redo">↷</button>
-        <p id="score"></p>
+        <p id="text-round-score" class="score"></p>
+        <div class="sidebar-row">
+          <button id="btn-submit">Submit</button>
+          <div id="text-frame-score" class="score"></div>
+        </div>
+        <div class="sidebar-row">
+          <button id="btn-shuffle">Shuffle</button>
+          <button id="btn-undo">↶</button>
+          <button id="btn-redo">↷</button>
+        </div>
       </div>
     </div>
   </body>

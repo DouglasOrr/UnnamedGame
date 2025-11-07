@@ -6,9 +6,15 @@ export function start(game: G.Game): void {
 
 class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly textScore: HTMLElement = document.getElementById("score")!;
-  private readonly btnNew: HTMLButtonElement = document.getElementById(
-    "btn-new"
+  private readonly textRoundScore: HTMLElement =
+    document.getElementById("text-round-score")!;
+  private readonly textFrameScore: HTMLElement =
+    document.getElementById("text-frame-score")!;
+  private readonly btnSubmit: HTMLButtonElement = document.getElementById(
+    "btn-submit"
+  )! as HTMLButtonElement;
+  private readonly btnShuffle: HTMLButtonElement = document.getElementById(
+    "btn-shuffle"
   )! as HTMLButtonElement;
   private readonly btnUndo: HTMLButtonElement = document.getElementById(
     "btn-undo"
@@ -45,7 +51,11 @@ class Renderer {
       }
       this.draw();
     });
-    this.btnNew.addEventListener("click", () => {
+
+    this.btnSubmit.addEventListener("click", () => {
+      this.game.submit();
+    });
+    this.btnShuffle.addEventListener("click", () => {
       game.newGrid();
     });
     this.btnUndo.addEventListener("click", () => {
@@ -60,16 +70,24 @@ class Renderer {
     const pad = this.cellSize / 10;
     const grid = this.game.grid;
 
-    // Score
+    // Round score
+    this.textRoundScore.innerText =
+      `[${this.game.frame + 1}/${this.game.maxFrames}]` +
+      ` ${Math.max(0, this.game.targetScore - this.game.roundScore)} nnats (${
+        this.game.roundScore
+      })`;
+    this.textRoundScore.dataset.status = this.game.status();
+
+    // Frame score
     const sortedScores = this.game.score.components
       .map((comp) => comp.score)
       .filter((score) => score > 0)
       .sort((a, b) => b - a);
     const totalScore = sortedScores.reduce((sum, score) => sum + score, 0);
-    this.textScore.innerText =
+    this.textFrameScore.innerText =
       sortedScores.length >= 2
-        ? `Score: ${totalScore} = ${sortedScores.join(" + ")}`
-        : `Score: ${totalScore}`;
+        ? `${totalScore} nnats\n= ${sortedScores.join(" + ")}`
+        : `${totalScore} nnats`;
 
     // Buttons
     this.btnUndo.disabled = this.game.stateIndex === 0;

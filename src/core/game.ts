@@ -244,12 +244,22 @@ export class Game {
   readonly patterns: Pattern[];
   readonly onUpdate: Listener[] = [];
   readonly state: GameState[];
+  readonly maxFrames: number = 3;
+  readonly targetScore: number;
   stateIndex: number = 0;
+  frame: number = 0;
+  roundScore: number = 0;
 
-  constructor(rows: number, cols: number, patterns: Pattern[]) {
+  constructor(
+    rows: number,
+    cols: number,
+    patterns: Pattern[],
+    targetScore: number
+  ) {
     this.patterns = patterns;
     const grid = Grid.random(rows, cols);
     this.state = [{ grid, score: score(grid, patterns) }];
+    this.targetScore = targetScore;
   }
 
   get grid(): Grid {
@@ -258,6 +268,13 @@ export class Game {
 
   get score(): Score {
     return this.state[this.stateIndex].score;
+  }
+
+  status(): "playing" | "win" | "lose" {
+    if (this.frame >= this.maxFrames || this.roundScore >= this.targetScore) {
+      return this.roundScore >= this.targetScore ? "win" : "lose";
+    }
+    return "playing";
   }
 
   private push(grid: Grid): void {
@@ -279,6 +296,25 @@ export class Game {
   redo(): void {
     if (this.stateIndex < this.state.length - 1) {
       this.stateIndex++;
+      this.update();
+    }
+  }
+
+  submit(): void {
+    const frameScore = this.score.components.reduce(
+      (sum, comp) => sum + comp.score,
+      0
+    );
+    this.roundScore += frameScore;
+    this.frame++;
+    if (this.frame < this.maxFrames && this.roundScore < this.targetScore) {
+      this.newGrid();
+    } else {
+      setTimeout(() => {
+        this.frame = 0;
+        this.roundScore = 0;
+        this.newGrid();
+      }, 1000);
       this.update();
     }
   }
