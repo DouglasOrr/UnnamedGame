@@ -34,12 +34,27 @@ function backgroundColor(): THREE.Color {
   return new THREE.Color(getComputedStyle(document.body).backgroundColor);
 }
 
-class Tooltip {
-  private readonly element: HTMLDivElement;
-  private mousePosition: [number, number] = [NaN, NaN];
-  private elementTag: string = "";
+class Mouse {
+  position: [number, number] = [NaN, NaN];
+  screenPosition: [number, number] = [NaN, NaN];
 
   constructor(private readonly canvas: HTMLCanvasElement) {
+    canvas.addEventListener("mousemove", (e) => {
+      this.screenPosition = [e.clientX, e.clientY];
+      const rect = this.canvas.getBoundingClientRect();
+      this.position = [e.clientX - rect.left, rect.bottom - e.clientY];
+    });
+    canvas.addEventListener("mouseleave", () => {
+      this.position = this.screenPosition = [NaN, NaN];
+    });
+  }
+}
+
+class Tooltip {
+  private readonly element: HTMLDivElement;
+  private elementTag: string = "";
+
+  constructor(private readonly mouse: Mouse) {
     this.element = document.createElement("div");
     this.element.style.position = "absolute";
     this.element.style.padding = "6px 8px";
@@ -51,23 +66,17 @@ class Tooltip {
     this.element.style.pointerEvents = "none";
     this.element.style.display = "none"; // hidden by default
     document.body.appendChild(this.element);
-
-    canvas.addEventListener("mousemove", (e) => {
-      this.mousePosition = [e.clientX, canvas.clientHeight - e.clientY];
-    });
-    canvas.addEventListener("mouseleave", () => {
-      this.mousePosition = [NaN, NaN];
-    });
   }
 
   hover(box: Box, tag: string, content: () => string): void {
-    const [x, y] = this.mousePosition;
+    const [x, y] = this.mouse.position;
     if (box.left <= x && x <= box.right && box.bottom <= y && y <= box.top) {
       this.element.style.display = "block";
       this.element.textContent = content();
       const offset = 10;
-      this.element.style.left = `${x + offset}px`;
-      this.element.style.top = `${this.canvas.clientHeight - y + offset}px`;
+      const [screenX, screenY] = this.mouse.screenPosition;
+      this.element.style.left = `${screenX + offset}px`;
+      this.element.style.top = `${screenY + offset}px`;
       this.elementTag = tag;
     } else if (this.elementTag === tag) {
       this.element.style.display = "none";
@@ -188,7 +197,12 @@ class GridView {
   private readonly cells: InstancedSpriteSheet;
   private readonly carets: InstancedSpriteSheet;
 
-  constructor(private readonly game: G.Game, scene: THREE.Scene) {
+  constructor(
+    private readonly game: G.Game,
+    private readonly mouse: Mouse,
+    private readonly progress: ProgressView,
+    scene: THREE.Scene
+  ) {
     this.cells = new InstancedSpriteSheet(
       "img/cells.png",
       [1, 3],
@@ -206,8 +220,18 @@ class GridView {
   // Update instance matrices to match layout.grid and the current game.grid
   update(bounds: Box): void {
     const markSizeRatio = 0.5;
-    const brightnesses = [0.5, 1.0, 1.0];
-    const caretColor: [number, number, number] = [0.3, 0.4, 0.3];
+    const markHoverGrow = 1.05;
+
+    const color = (v: number): [number, number, number] =>
+      new THREE.Color(v).toArray() as [number, number, number];
+
+    const colors = {
+      caret: color(0x99aa99),
+      o: color(0x999999),
+      xw: color(0xdddddd),
+      hover: color(0xeeeeee),
+      pattern: color(0xffdd55),
+    };
 
     const grid = this.game.grid;
     const cellSize = Math.min(
@@ -215,21 +239,58 @@ class GridView {
       (bounds.top - bounds.bottom) / (grid.rows + 2)
     );
     const markSize = markSizeRatio * cellSize;
+    const cellsLeft = bounds.left + cellSize;
+    const cellsBottom = bounds.bottom + cellSize;
+
+    // Mouse hover
+    const mrow = Math.floor((this.mouse.position[1] - cellsBottom) / cellSize);
+    const mcol = Math.floor((this.mouse.position[0] - cellsLeft) / cellSize);
+    let hoverIndices = new Set<number>();
+    let patternIndices = new Set<number>();
+    const hoverComponent =
+      0 <= mrow && mrow < grid.rows && 0 <= mcol && mcol < grid.cols
+        ? this.game.score.cellToComponent[mrow * grid.cols + mcol]
+        : null;
+    if (hoverComponent !== null) {
+      const component = this.game.score.components[hoverComponent];
+      hoverIndices = new Set(component.indices);
+      for (const i in component.patterns) {
+        const pattern = this.game.patterns[component.patterns[i]];
+        const pos = component.patternPositions[i];
+        for (let j = 0; j < pattern.grid.rows * pattern.grid.cols; j++) {
+          if (pattern.grid.cells[j] !== G.Cell.O) {
+            patternIndices.add(
+              pos +
+                Math.floor(j / pattern.grid.cols) * grid.cols +
+                (j % pattern.grid.cols)
+            );
+          }
+        }
+      }
+    }
+    this.progress.hover(hoverComponent);
 
     // Cells
     for (let i = 0; i < grid.cells.length; i++) {
       const row = Math.floor(i / grid.cols);
       const col = i % grid.cols;
-      const x = bounds.left + (col + 1.5) * cellSize;
-      const y = bounds.bottom + (row + 1.5) * cellSize;
-      const b = brightnesses[grid.cells[i]];
+      const x = cellsLeft + (col + 0.5) * cellSize;
+      const y = cellsBottom + (row + 0.5) * cellSize;
+      const tint = patternIndices.has(i)
+        ? colors.pattern
+        : hoverIndices.has(i)
+        ? colors.hover
+        : grid.cells[i] === 0
+        ? colors.o
+        : colors.xw;
+      const size = hoverIndices.has(i) ? markHoverGrow * markSize : markSize;
       this.cells.update(
         i,
         /*pos*/ [x, y],
-        /*scale*/ [markSize, markSize],
+        /*scale*/ [size, size],
         /*rot*/ 0,
         /*tile*/ [0, 2 - grid.cells[i]],
-        /*tint*/ [b, b, b]
+        /*tint*/ tint
       );
     }
 
@@ -245,7 +306,7 @@ class GridView {
         /*scale*/ [markSize, 0.5 * markSize],
         /*rot*/ rot,
         /*tile*/ [0, 0],
-        /*tint*/ caretColor
+        /*tint*/ colors.caret
       );
     };
     for (let i = 0; i < grid.cols; i++) {
@@ -262,8 +323,8 @@ class GridView {
 class ProgressView {
   private readonly outline: THREE.Mesh;
   private readonly background: THREE.Mesh;
-  private readonly fill0: THREE.Mesh;
-  private readonly fill1: THREE.Mesh;
+  private readonly fill: [THREE.Mesh, THREE.Mesh, THREE.Mesh];
+  private hoverComponent: number | null = null;
 
   constructor(
     private readonly game: G.Game,
@@ -274,22 +335,31 @@ class ProgressView {
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ color: 0x161616 })
     );
+    this.outline.position.z = 0;
+
+    scene.add(this.outline);
     this.background = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ color: backgroundColor().getHex() })
     );
-    this.fill0 = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ color: 0x610003 })
-    );
-    this.fill1 = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ color: 0xb37e1d })
-    );
-    this.outline.position.z = 0;
     this.background.position.z = 0.01;
-    this.fill0.position.z = this.fill1.position.z = 0.02;
-    scene.add(this.outline, this.background, this.fill0, this.fill1);
+    scene.add(this.background);
+
+    this.fill = [0x610003, 0xb37e1d, 0xdddddd].map(
+      (color) =>
+        new THREE.Mesh(
+          new THREE.PlaneGeometry(1, 1),
+          new THREE.MeshBasicMaterial({ color: color })
+        )
+    ) as unknown as [THREE.Mesh, THREE.Mesh, THREE.Mesh];
+    for (const f of this.fill) {
+      f.position.z = 0.02;
+      scene.add(f);
+    }
+  }
+
+  hover(component: number | null) {
+    this.hoverComponent = component;
   }
 
   update(bounds: Box): void {
@@ -302,36 +372,42 @@ class ProgressView {
     const cx = (bounds.left + bounds.right) / 2;
     const cy = (bounds.bottom + bounds.top) / 2;
 
-    // Progress
-    const progress01 = Math.max(
-      0,
-      this.game.targetScore - this.game.roundScore
-    );
-    const progress0 = Math.max(0, progress01 - this.game.score.total);
-    const h0 = (innerH * progress0) / this.game.targetScore;
-    const h1 = (innerH * (progress01 - progress0)) / this.game.targetScore;
-
-    // Set positions
     this.outline.position.set(cx, cy, this.outline.position.z);
     this.outline.scale.set(w, h, 1);
     this.background.position.set(cx, cy, this.background.position.z);
     this.background.scale.set(innerW, innerH, 1);
-    this.fill0.position.set(
-      cx,
-      cy - innerH / 2 + h0 / 2,
-      this.fill0.position.z
+
+    // Progress
+    const progressAll = Math.max(
+      0,
+      this.game.targetScore - this.game.roundScore
     );
-    this.fill0.scale.set(innerW, h0, 1);
-    this.fill1.position.set(
-      cx,
-      cy - innerH / 2 + h0 + h1 / 2,
-      this.fill1.position.z
-    );
-    this.fill1.scale.set(innerW, h1, 1);
+    let progress2 = 0;
+    let progress1 = Math.min(progressAll, this.game.score.total);
+    const progress0 = Math.max(0, progressAll - progress1);
+    if (this.hoverComponent !== null) {
+      progress2 = Math.min(
+        progressAll,
+        this.game.score.components[this.hoverComponent].score
+      );
+      progress1 = Math.max(0, progress1 - progress2);
+    }
+
+    let y = 0;
+    for (const [i, progress] of [progress0, progress1, progress2].entries()) {
+      const h = (innerH * progress) / this.game.targetScore;
+      this.fill[i].position.set(
+        cx,
+        cy - innerH / 2 + y + h / 2,
+        this.fill[i].position.z
+      );
+      this.fill[i].scale.set(innerW, h, 1);
+      y += h;
+    }
 
     // Tooltip
     this.tooltip.hover(bounds, "progress", () => {
-      return `${progress01} nnats (- ${this.game.score.total})`;
+      return `${progressAll} nnats (- ${this.game.score.total})`;
     });
   }
 }
@@ -344,6 +420,7 @@ class Renderer {
   private readonly camera: THREE.OrthographicCamera;
   private lastTime: number | null = null;
 
+  private readonly mouse: Mouse;
   private readonly tooltip: Tooltip;
   private readonly gridView: GridView;
   private readonly progressView: ProgressView;
@@ -361,9 +438,15 @@ class Renderer {
     requestAnimationFrame(this.onAnimate.bind(this));
 
     // Views
-    this.tooltip = new Tooltip(canvas);
-    this.gridView = new GridView(this.game, this.scene);
+    this.mouse = new Mouse(canvas);
+    this.tooltip = new Tooltip(this.mouse);
     this.progressView = new ProgressView(this.game, this.scene, this.tooltip);
+    this.gridView = new GridView(
+      this.game,
+      this.mouse,
+      this.progressView,
+      this.scene
+    );
 
     // Keyboard controls
     window.addEventListener("keydown", (e) => {
