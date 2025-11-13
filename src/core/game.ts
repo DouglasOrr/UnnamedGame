@@ -200,6 +200,7 @@ export interface Component {
 }
 
 export interface Score {
+  total: number;
   components: Component[];
   cellToComponent: (number | null)[];
 }
@@ -246,7 +247,9 @@ export function score(grid: Grid, patterns: Pattern[]): Score {
     component.score = score;
   }
 
-  return { components, cellToComponent: gridC.cellToComponent };
+  const total = components.reduce((sum, comp) => sum + comp.score, 0);
+
+  return { total, components, cellToComponent: gridC.cellToComponent };
 }
 
 // Game state
@@ -264,11 +267,13 @@ export class Game {
   readonly actions: Action[];
   readonly onUpdate: Listener[] = [];
   readonly maxFrames: number = 3;
+  readonly maxRolls: number = 2;
   readonly targetScore: number;
   state: GameState[];
   stateIndex: number = 0;
   frame: number = 0;
   roundScore: number = 0;
+  roll: number = 1;
 
   constructor(
     patterns: Pattern[],
@@ -282,6 +287,7 @@ export class Game {
     const grid = Grid.random(rows, cols);
     this.state = [{ grid, score: score(grid, patterns), action: null }];
     this.targetScore = targetScore;
+    this.update();
   }
 
   get grid(): Grid {
@@ -313,6 +319,11 @@ export class Game {
   }
 
   update(): void {
+    console.log(
+      `Frame ${this.frame + 1}/${this.maxFrames}`,
+      `Score ${this.score.total}`,
+      `Round Score ${this.roundScore}/${this.targetScore}`
+    );
     for (const listener of this.onUpdate) {
       listener();
     }
@@ -332,6 +343,15 @@ export class Game {
     this.update();
   }
 
+  hasAction(action: number): boolean {
+    for (let i = 0; i <= this.stateIndex; i++) {
+      if (this.state[i].action === action) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   undo(): void {
     if (this.stateIndex > 0) {
       this.stateIndex--;
@@ -349,18 +369,16 @@ export class Game {
   // Irreversible actions
 
   submit(): void {
-    const frameScore = this.score.components.reduce(
-      (sum, comp) => sum + comp.score,
-      0
-    );
-    this.roundScore += frameScore;
+    this.roundScore += this.score.total;
     this.frame++;
     if (this.frame < this.maxFrames && this.roundScore < this.targetScore) {
+      this.roll = 0;
       this.newGrid();
     } else {
       setTimeout(() => {
         this.frame = 0;
         this.roundScore = 0;
+        this.roll = 0;
         this.newGrid();
       }, 1000);
       this.update();
@@ -369,9 +387,12 @@ export class Game {
 
   newGrid(): void {
     // Not undo-able, but (implicitly) refunds actions
-    const grid = Grid.random(this.grid.rows, this.grid.cols);
-    this.stateIndex = 0;
-    this.state = [{ grid, score: score(grid, this.patterns), action: null }];
-    this.update();
+    if (this.roll < this.maxRolls) {
+      this.roll++;
+      const grid = Grid.random(this.grid.rows, this.grid.cols);
+      this.stateIndex = 0;
+      this.state = [{ grid, score: score(grid, this.patterns), action: null }];
+      this.update();
+    }
   }
 }

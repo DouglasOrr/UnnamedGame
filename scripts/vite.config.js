@@ -5,5 +5,6 @@ export default defineConfig({
   publicDir: "static",
   build: {
     outDir: "../dist",
+    chunkSizeWarningLimit: 2000,
   },
 });
