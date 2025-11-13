@@ -116,6 +116,30 @@ class Tooltip {
 
 // Components
 
+class Outline {
+  readonly line: THREE.Line;
+
+  constructor(color: number, z: number, scene: THREE.Scene) {
+    const geometry = new THREE.BufferGeometry();
+    const a = [-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0];
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(a), 3)
+    );
+    this.line = new THREE.LineLoop(
+      geometry,
+      new THREE.LineBasicMaterial({ color: color })
+    );
+    this.line.position.z = z;
+    scene.add(this.line);
+  }
+
+  update(cx: number, cy: number, w: number, h: number): void {
+    this.line.position.set(cx, cy, this.line.position.z);
+    this.line.scale.set(w, h, 1);
+  }
+}
+
 class InstancedSpriteSheet {
   private readonly mesh: THREE.InstancedMesh;
   private readonly tileAttr: THREE.InstancedBufferAttribute;
@@ -219,13 +243,15 @@ class InstancedSpriteSheet {
 
 class Button {
   private readonly mesh: THREE.Mesh;
+  private readonly outline: Outline;
   enabled: boolean = true;
+  selected: boolean = false;
 
   constructor(
     texture: string,
     private readonly mouse: Mouse,
     scene: THREE.Scene,
-    private readonly click: () => void,
+    private readonly click: (button: Button) => void,
     private readonly onUpdate?: (button: Button) => void
   ) {
     this.mesh = new THREE.Mesh(
@@ -237,6 +263,8 @@ class Button {
     );
     this.mesh.position.z = 0.05;
     scene.add(this.mesh);
+
+    this.outline = new Outline(0x447744, 0.05, scene);
   }
 
   update(cx: number, cy: number, w: number, h: number): void {
@@ -245,12 +273,14 @@ class Button {
     }
     const InnerSizeRatio = 0.6;
     const HoverSizeRatio = 1.05;
+    const OutlinePad = 0.04;
     const Colors = {
       hovered: 0xffffff,
       enabled: 0xaaaaaa,
       disabled: 0x555555,
     };
 
+    // Hover: size & color
     const hover = this.enabled && this.mouse.inside(cx, cy, w, h);
     const sizeRatio = hover ? HoverSizeRatio * InnerSizeRatio : InnerSizeRatio;
     this.mesh.position.set(cx, cy, this.mesh.position.z);
@@ -258,8 +288,15 @@ class Button {
     (this.mesh.material as THREE.MeshBasicMaterial).color.setHex(
       hover ? Colors.hovered : this.enabled ? Colors.enabled : Colors.disabled
     );
+
+    // Selected: outline
+    const pad = Math.min(w, h) * OutlinePad;
+    this.outline.line.visible = this.selected && this.enabled;
+    this.outline.update(cx, cy, w - 2 * pad, h - 2 * pad);
+
+    // Clickable
     if (hover && this.mouse.click) {
-      this.click();
+      this.click(this);
     }
   }
 }
@@ -269,10 +306,14 @@ class Button {
 class GridView {
   private readonly cells: InstancedSpriteSheet;
   private readonly carets: InstancedSpriteSheet;
+  private readonly hoverOutline: Outline;
+  private readonly srcOutline: Outline;
+  private swapSrc: number | null = null;
 
   constructor(
     private readonly game: G.Game,
     private readonly mouse: Mouse,
+    private readonly panel: PanelView,
     private readonly progress: ProgressView,
     scene: THREE.Scene
   ) {
@@ -288,12 +329,17 @@ class GridView {
       2 * (game.grid.rows + game.grid.cols),
       scene
     );
+    this.hoverOutline = new Outline(0xaaaaaa, 0.05, scene);
+    this.hoverOutline.line.visible = false;
+    this.srcOutline = new Outline(0x447744, 0.05, scene);
+    this.srcOutline.line.visible = false;
   }
 
   // Update instance matrices to match layout.grid and the current game.grid
   update(bounds: Box): void {
-    const markSizeRatio = 0.5;
-    const markHoverGrow = 1.05;
+    const MarkSizeRatio = 0.5;
+    const MarkHoverGrow = 1.05;
+    const OutlinePad = 0.04;
 
     const color = (v: number): [number, number, number] =>
       new THREE.Color(v).toArray() as [number, number, number];
@@ -311,32 +357,56 @@ class GridView {
       (bounds.right - bounds.left) / (grid.cols + 2),
       (bounds.top - bounds.bottom) / (grid.rows + 2)
     );
-    const markSize = markSizeRatio * cellSize;
+    const outlineSize = cellSize * (1 - 2 * OutlinePad);
+    const markSize = MarkSizeRatio * cellSize;
     const cellsLeft = bounds.left + cellSize;
     const cellsBottom = bounds.bottom + cellSize;
 
-    // Mouse hover
-    const mrow = Math.floor((this.mouse.position[1] - cellsBottom) / cellSize);
-    const mcol = Math.floor((this.mouse.position[0] - cellsLeft) / cellSize);
+    // Mouse hover & click
     let hoverIndices = new Set<number>();
     let patternIndices = new Set<number>();
-    const hoverComponent =
-      0 <= mrow && mrow < grid.rows && 0 <= mcol && mcol < grid.cols
-        ? this.game.score.cellToComponent[mrow * grid.cols + mcol]
-        : null;
-    if (hoverComponent !== null) {
-      const component = this.game.score.components[hoverComponent];
-      hoverIndices = new Set(component.indices);
-      for (const i in component.patterns) {
-        const pattern = this.game.patterns[component.patterns[i]];
-        const pos = component.patternPositions[i];
-        for (let j = 0; j < pattern.grid.rows * pattern.grid.cols; j++) {
-          if (pattern.grid.cells[j] !== G.Cell.O) {
-            patternIndices.add(
-              pos +
-                Math.floor(j / pattern.grid.cols) * grid.cols +
-                (j % pattern.grid.cols)
-            );
+    let hoverComponent: number | null = null;
+    const mrow = Math.floor((this.mouse.position[1] - cellsBottom) / cellSize);
+    const mcol = Math.floor((this.mouse.position[0] - cellsLeft) / cellSize);
+    this.hoverOutline.line.visible = false;
+    if (0 <= mrow && mrow < grid.rows && 0 <= mcol && mcol < grid.cols) {
+      // Mouse is over the grid of cells
+      hoverComponent = this.game.score.cellToComponent[mrow * grid.cols + mcol];
+      if (hoverComponent !== null) {
+        const component = this.game.score.components[hoverComponent];
+        hoverIndices = new Set(component.indices);
+        for (const i in component.patterns) {
+          const pattern = this.game.patterns[component.patterns[i]];
+          const pos = component.patternPositions[i];
+          for (let j = 0; j < pattern.grid.rows * pattern.grid.cols; j++) {
+            if (pattern.grid.cells[j] !== G.Cell.O) {
+              patternIndices.add(
+                pos +
+                  Math.floor(j / pattern.grid.cols) * grid.cols +
+                  (j % pattern.grid.cols)
+              );
+            }
+          }
+        }
+      }
+      const actionIdx = this.panel.selectedAction();
+      if (actionIdx !== null && this.game.actions[actionIdx].name == "swap") {
+        this.hoverOutline.line.visible = true;
+        this.hoverOutline.update(
+          cellsLeft + (mcol + 0.5) * cellSize,
+          cellsBottom + (mrow + 0.5) * cellSize,
+          outlineSize,
+          outlineSize
+        );
+        if (this.mouse.click) {
+          const cellIdx = mrow * grid.cols + mcol;
+          if (this.swapSrc === null) {
+            this.swapSrc = cellIdx;
+          } else if (this.swapSrc === cellIdx) {
+            this.swapSrc = null; // cancel
+          } else {
+            this.game.execute(actionIdx, { i: this.swapSrc, j: cellIdx });
+            this.swapSrc = null;
           }
         }
       }
@@ -344,6 +414,9 @@ class GridView {
     this.progress.hover(hoverComponent);
 
     // Cells
+    if (this.swapSrc === null) {
+      this.srcOutline.line.visible = false;
+    }
     for (let i = 0; i < grid.cells.length; i++) {
       const row = Math.floor(i / grid.cols);
       const col = i % grid.cols;
@@ -356,7 +429,7 @@ class GridView {
         : grid.cells[i] === 0
         ? colors.o
         : colors.xw;
-      const size = hoverIndices.has(i) ? markHoverGrow * markSize : markSize;
+      const size = hoverIndices.has(i) ? MarkHoverGrow * markSize : markSize;
       this.cells.update(
         i,
         /*pos*/ [x, y],
@@ -365,6 +438,10 @@ class GridView {
         /*tile*/ [0, 2 - grid.cells[i]],
         /*tint*/ tint
       );
+      if (i === this.swapSrc) {
+        this.srcOutline.update(x, y, outlineSize, outlineSize);
+        this.srcOutline.line.visible = true;
+      }
     }
 
     // Carets
@@ -489,6 +566,7 @@ class ProgressView {
 class PanelView {
   private readonly background: THREE.Mesh;
   private readonly controls: Button[];
+  private readonly actions: Button[];
 
   constructor(private readonly game: G.Game, mouse: Mouse, scene: THREE.Scene) {
     this.background = new THREE.Mesh(
@@ -528,6 +606,24 @@ class PanelView {
         }
       ),
     ];
+    this.actions = this.game.actions.map(
+      (action) =>
+        new Button(`img/actions/${action.name}.png`, mouse, scene, (button) => {
+          this.actions.forEach((b) => {
+            b.selected = false;
+          });
+          button.selected = true;
+        })
+    );
+  }
+
+  selectedAction(): number | null {
+    for (let i = 0; i < this.actions.length; i++) {
+      if (this.actions[i].selected) {
+        return i;
+      }
+    }
+    return null;
   }
 
   update(bounds: Box): void {
@@ -559,6 +655,31 @@ class PanelView {
         buttonSize,
         buttonSize
       );
+    }
+    for (let i = 0; i < this.actions.length; i++) {
+      const button = this.actions[i];
+      button.enabled = this.game.hasAction(i);
+      button.update(
+        bounds.left + inset + (i % cols) * buttonSize + buttonSize / 2,
+        bounds.top -
+          inset -
+          sectionPad -
+          buttonSize *
+            (Math.ceil(this.controls.length / cols) + Math.floor(i / cols)) -
+          buttonSize / 2,
+        buttonSize,
+        buttonSize
+      );
+      button.selected &&= button.enabled;
+    }
+    // If no action is selected, select the first enabled one
+    if (this.actions.reduce((acc, b) => acc || b.selected, false) === false) {
+      for (const b of this.actions) {
+        if (b.enabled) {
+          b.selected = true;
+          break;
+        }
+      }
     }
   }
 }
@@ -593,13 +714,14 @@ class Renderer {
     this.mouse = new Mouse(canvas);
     this.tooltip = new Tooltip(this.mouse);
     this.progressView = new ProgressView(this.game, this.scene, this.tooltip);
+    this.panelView = new PanelView(this.game, this.mouse, this.scene);
     this.gridView = new GridView(
       this.game,
       this.mouse,
+      this.panelView,
       this.progressView,
       this.scene
     );
-    this.panelView = new PanelView(this.game, this.mouse, this.scene);
 
     // Keyboard controls
     window.addEventListener("keydown", (e) => {

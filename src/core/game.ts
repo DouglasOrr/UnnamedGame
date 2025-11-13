@@ -343,6 +343,15 @@ export class Game {
     this.update();
   }
 
+  hasAction(action: number): boolean {
+    for (let i = 0; i <= this.stateIndex; i++) {
+      if (this.state[i].action === action) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   undo(): void {
     if (this.stateIndex > 0) {
       this.stateIndex--;
