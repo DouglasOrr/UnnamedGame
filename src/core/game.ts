@@ -168,7 +168,7 @@ export interface Action extends Item {
 export const SwapAction: Action = {
   name: "swap",
   title: "Swap",
-  description: "Select two cells to swap",
+  description: "select 2 cells to swap",
   priority: 1,
   execute(grid: Grid, arg: { i: number; j: number }): Grid {
     const cellsOut = grid.cells.slice();
@@ -263,6 +263,30 @@ export class ComponentScore {
       total += this.cellIndices.length;
     }
     return total;
+  }
+
+  get scoreExplanation(): { name: string; points: number; count: number }[] {
+    const explanation: { name: string; points: number; count: number }[] = [];
+    for (const p of this.matches) {
+      const existing = explanation.find(
+        (e) => e.name === p.pattern.name && e.points === p.pattern.points
+      );
+      if (existing) {
+        existing.count++;
+      } else {
+        explanation.push({
+          name: p.pattern.name,
+          points: p.pattern.points,
+          count: 1,
+        });
+      }
+    }
+    explanation.push({
+      name: "",
+      points: 1,
+      count: this.cellIndices.length,
+    });
+    return explanation;
   }
 }
 

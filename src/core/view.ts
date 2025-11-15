@@ -40,6 +40,22 @@ function loadTexture(path: string): THREE.Texture {
   );
 }
 
+function worldToScreen(
+  canvas: HTMLCanvasElement,
+  position: [number, number]
+): [number, number] {
+  const rect = canvas.getBoundingClientRect();
+  return [rect.left + position[0], rect.bottom - position[1]];
+}
+
+function screenToWorld(
+  canvas: HTMLCanvasElement,
+  position: [number, number]
+): [number, number] {
+  const rect = canvas.getBoundingClientRect();
+  return [position[0] - rect.left, rect.bottom - position[1]];
+}
+
 class Mouse {
   position: [number, number] = [NaN, NaN];
   screenPosition: [number, number] = [NaN, NaN];
@@ -49,8 +65,7 @@ class Mouse {
   constructor(private readonly canvas: HTMLCanvasElement) {
     canvas.addEventListener("mousemove", (e) => {
       this.screenPosition = [e.clientX, e.clientY];
-      const rect = this.canvas.getBoundingClientRect();
-      this.position = [e.clientX - rect.left, rect.bottom - e.clientY];
+      this.position = screenToWorld(this.canvas, this.screenPosition);
     });
     canvas.addEventListener("mouseleave", () => {
       this.position = this.screenPosition = [NaN, NaN];
@@ -83,7 +98,10 @@ class Tooltip {
   private readonly element: HTMLDivElement;
   private elementTag: any = null;
 
-  constructor(private readonly mouse: Mouse) {
+  constructor(
+    private readonly mouse: Mouse,
+    private readonly canvas: HTMLCanvasElement
+  ) {
     this.element = document.createElement("div");
     this.element.style.position = "absolute";
     this.element.style.padding = "6px 8px";
@@ -97,15 +115,36 @@ class Tooltip {
     document.body.appendChild(this.element);
   }
 
-  hover(box: Box, tag: any, content: () => string): void {
-    const [x, y] = this.mouse.position;
-    if (box.left <= x && x <= box.right && box.bottom <= y && y <= box.top) {
+  show(
+    tag: any,
+    when: boolean | Box,
+    content?: () => string,
+    position?: [number, number]
+  ): void {
+    const [mouseX, mouseY] = this.mouse.position;
+    const shown =
+      when === true
+        ? true
+        : when === false
+        ? false
+        : when.left <= mouseX &&
+          mouseX <= when.right &&
+          when.bottom <= mouseY &&
+          mouseY <= when.top;
+    if (shown) {
       this.element.style.display = "block";
-      this.element.innerHTML = content();
+      this.element.innerHTML = content ? content() : "";
       const offset = 10;
-      const [screenX, screenY] = this.mouse.screenPosition;
-      this.element.style.left = `${screenX + offset}px`;
-      this.element.style.top = `${screenY + offset}px`;
+      let [tipX, tipY] = worldToScreen(
+        this.canvas,
+        position !== undefined ? position : this.mouse.position
+      );
+      if (position === undefined) {
+        tipX += offset;
+        tipY += offset;
+      }
+      this.element.style.left = `${tipX}px`;
+      this.element.style.top = `${tipY}px`;
       this.elementTag = tag;
     } else if (this.elementTag === tag) {
       this.element.style.display = "none";
@@ -266,14 +305,14 @@ class Item {
     const InnerSizeRatio = 0.6;
     this.mesh.position.set(cx, cy, this.mesh.position.z);
     this.mesh.scale.set(w * InnerSizeRatio, h * InnerSizeRatio, 1);
-    this.tooltip.hover(
+    this.tooltip.show(
+      this,
       {
         left: cx - w / 2,
         right: cx + w / 2,
         bottom: cy - h / 2,
         top: cy + h / 2,
       },
-      this,
       () => this.tipText
     );
   }
@@ -340,14 +379,14 @@ class Button {
     }
     // Tooltip
     if (this.tipText !== null) {
-      this.tooltip.hover(
+      this.tooltip.show(
+        this,
         {
           left: cx - w / 2,
           right: cx + w / 2,
           bottom: cy - h / 2,
           top: cy + h / 2,
         },
-        this,
         () => this.tipText!
       );
     }
@@ -648,9 +687,29 @@ class ProgressView {
     }
 
     // Tooltip
-    this.tooltip.hover(bounds, "progress", () => {
-      return `${progressAll} nnats (- ${this.game.score.total})`;
-    });
+    if (this.hoverComponent !== null) {
+      const component = this.game.score.components[this.hoverComponent];
+      this.tooltip.show(
+        this,
+        component.score > 0,
+        () => {
+          const explanation = component.scoreExplanation
+            .map(
+              (e) => `-${e.points} ×${e.count}&nbsp;&nbsp;<em>${e.name}</em>`
+            )
+            .join("<br>&nbsp;&nbsp;&nbsp;&nbsp;");
+          return `- ${component.score} nnats<br>&nbsp;= ${explanation}`;
+        },
+        [
+          bounds.right,
+          cy + innerH * (progressAll / this.game.targetScore - 1 / 2),
+        ]
+      );
+    } else {
+      this.tooltip.show(this, bounds, () => {
+        return `${progressAll} nnats (- ${this.game.score.total})`;
+      });
+    }
   }
 }
 
@@ -869,7 +928,7 @@ class Renderer {
 
     // Views
     this.mouse = new Mouse(canvas);
-    this.tooltip = new Tooltip(this.mouse);
+    this.tooltip = new Tooltip(this.mouse, canvas);
     this.progressView = new ProgressView(this.game, this.scene, this.tooltip);
     this.panelView = new PanelView(
       this.game,
