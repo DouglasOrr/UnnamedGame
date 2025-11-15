@@ -40,6 +40,45 @@ function loadTexture(path: string): THREE.Texture {
   );
 }
 
+type PatternTextures = { [key: string]: THREE.Texture };
+
+function renderPatternTextures(patterns: G.Pattern[]): PatternTextures {
+  const textures: PatternTextures = {};
+  for (const pattern of patterns) {
+    textures[pattern.name] = renderPatternTexture(pattern);
+  }
+  return textures;
+}
+
+function renderPatternTexture(pattern: G.Pattern): THREE.Texture {
+  const CellSize = 32;
+  const FillRatio = 0.8;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height =
+    CellSize * Math.max(pattern.grid.cols, pattern.grid.rows);
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < pattern.grid.elements; i++) {
+    const row = Math.floor(i / pattern.grid.cols);
+    const col = i % pattern.grid.cols;
+    const cell = pattern.grid.get(row, col);
+    if (cell !== G.Cell.O) {
+      ctx.fillRect(
+        canvas.width * 0.5 + CellSize * (col - pattern.grid.cols / 2),
+        canvas.height * 0.5 + CellSize * (row - pattern.grid.rows / 2),
+        FillRatio * CellSize,
+        FillRatio * CellSize
+      );
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  texture.generateMipmaps = false;
+  return texture;
+}
+
 function worldToScreen(
   canvas: HTMLCanvasElement,
   position: [number, number]
@@ -200,7 +239,7 @@ class InstancedSpriteSheet {
   ) {
     const material = new THREE.ShaderMaterial({
       uniforms: {
-        tex: {
+        map: {
           value: loadTexture(texturePath),
         },
         texTiles: { value: new THREE.Vector2(tiles[0], tiles[1]) },
@@ -220,11 +259,11 @@ class InstancedSpriteSheet {
         }
       `,
       fragmentShader: `
-        uniform sampler2D tex;
+        uniform sampler2D map;
         varying vec2 vUv;
         varying vec3 vTint;
         void main() {
-          vec4 c = texture2D(tex, vUv);
+          vec4 c = texture2D(map, vUv);
           if (c.a < 0.01) discard;
           gl_FragColor = vec4(c.rgb * vTint, c.a);
         }
@@ -284,15 +323,16 @@ class Item {
   private readonly mesh: THREE.Mesh;
 
   constructor(
-    texture: string,
+    texture: string | THREE.Texture,
     private readonly tipText: string,
     private readonly tooltip: Tooltip,
     scene: THREE.Scene
   ) {
+    const map = typeof texture === "string" ? loadTexture(texture) : texture;
     this.mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({
-        map: loadTexture(texture),
+        map,
         transparent: true,
         color: 0xaaaaaa,
       })
@@ -492,13 +532,13 @@ class GridView {
     const outlineSize = cellSize * (1 - 2 * OutlinePad);
     const markSize = MarkSizeRatio * cellSize;
     const cellsLeft = bounds.left + cellSize;
-    const cellsBottom = bounds.bottom + cellSize;
+    const cellsTop = bounds.top - cellSize;
 
     // Mouse hover & click
     let hoverIndices = new Set<number>();
     let patternIndices = new Set<number>();
     let hoverComponent: number | null = null;
-    const mrow = Math.floor((this.mouse.position[1] - cellsBottom) / cellSize);
+    const mrow = Math.floor((cellsTop - this.mouse.position[1]) / cellSize);
     const mcol = Math.floor((this.mouse.position[0] - cellsLeft) / cellSize);
     this.hoverOutline.line.visible = false;
     if (0 <= mrow && mrow < grid.rows && 0 <= mcol && mcol < grid.cols) {
@@ -524,7 +564,7 @@ class GridView {
         this.hoverOutline.line.visible = true;
         this.hoverOutline.update(
           cellsLeft + (mcol + 0.5) * cellSize,
-          cellsBottom + (mrow + 0.5) * cellSize,
+          cellsTop - (mrow + 0.5) * cellSize,
           outlineSize,
           outlineSize
         );
@@ -551,7 +591,7 @@ class GridView {
       const row = Math.floor(i / grid.cols);
       const col = i % grid.cols;
       const x = cellsLeft + (col + 0.5) * cellSize;
-      const y = cellsBottom + (row + 0.5) * cellSize;
+      const y = cellsTop - (row + 0.5) * cellSize;
       const tint = patternIndices.has(i)
         ? colors.pattern
         : hoverIndices.has(i)
@@ -695,7 +735,10 @@ class ProgressView {
         () => {
           const explanation = component.scoreExplanation
             .map(
-              (e) => `-${e.points} ×${e.count}&nbsp;&nbsp;<em>${e.name}</em>`
+              (e) =>
+                `-${e.points} ×${e.count}&nbsp;&nbsp;<em>${
+                  e.pattern?.title ?? ""
+                }</em>`
             )
             .join("<br>&nbsp;&nbsp;&nbsp;&nbsp;");
           return `- ${component.score} nnats<br>&nbsp;= ${explanation}`;
@@ -717,6 +760,7 @@ class PanelView {
   private readonly background: THREE.Mesh;
   private readonly controls: Button[];
   private readonly actions: Button[];
+  private readonly patterns: Item[];
   private readonly bonuses: Item[];
   private readonly framePips: Pips;
   private readonly rerollPips: Pips;
@@ -725,7 +769,8 @@ class PanelView {
     private readonly game: G.Game,
     mouse: Mouse,
     tooltip: Tooltip,
-    scene: THREE.Scene
+    scene: THREE.Scene,
+    patternTextures: PatternTextures
   ) {
     this.background = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
@@ -793,6 +838,15 @@ class PanelView {
           }
         )
     );
+    this.patterns = this.game.patterns.map((pattern) => {
+      return new Item(
+        patternTextures[pattern.name],
+        `<b>${pattern.title}</b> [${pattern.grid.rows}×${pattern.grid.cols}]` +
+          `<br>-${pattern.points} nnats`,
+        tooltip,
+        scene
+      );
+    });
     this.bonuses = this.game.bonuses.map(
       (bonus) =>
         new Item(
@@ -822,8 +876,9 @@ class PanelView {
     const rows =
       PipHeightRatio + // Pips: half-height
       Math.ceil(this.controls.length / cols) +
-      Math.ceil(this.game.patterns.length / cols) +
-      Math.ceil(this.game.actions.length / cols);
+      Math.ceil(this.game.actions.length / cols) +
+      Math.ceil(this.patterns.length / cols) +
+      Math.ceil(this.bonuses.length / cols);
 
     // Layout
     const cx = (bounds.left + bounds.right) / 2;
@@ -841,7 +896,7 @@ class PanelView {
     this.background.position.set(cx, cy, this.background.position.z);
     this.background.scale.set(w, h, 1);
 
-    // Positions
+    // Pips
     const x0 = bounds.left + inset + buttonSize / 2;
     let y = bounds.top - inset - (PipHeightRatio * buttonSize) / 2;
     this.framePips.update(
@@ -859,6 +914,7 @@ class PanelView {
       this.game.rollsRemaining
     );
     y -= (PipHeightRatio * buttonSize) / 2 + buttonSize / 2;
+    // Controls
     for (let i = 0; i < this.controls.length; i++) {
       this.controls[i].update(
         x0 + (i % cols) * buttonSize,
@@ -868,6 +924,7 @@ class PanelView {
       );
     }
     y -= sectionPad + buttonSize * Math.ceil(this.controls.length / cols);
+    // Actions
     for (let i = 0; i < this.actions.length; i++) {
       const button = this.actions[i];
       button.enabled = this.game.hasAction(i);
@@ -879,7 +936,6 @@ class PanelView {
       );
       button.selected &&= button.enabled;
     }
-    y -= sectionPad + buttonSize * Math.ceil(this.game.actions.length / cols);
     // If no action is selected, select the first enabled one
     if (this.actions.reduce((acc, b) => acc || b.selected, false) === false) {
       for (const b of this.actions) {
@@ -889,6 +945,18 @@ class PanelView {
         }
       }
     }
+    y -= sectionPad + buttonSize * Math.ceil(this.game.actions.length / cols);
+    // Patterns
+    for (let i = 0; i < this.patterns.length; i++) {
+      this.patterns[i].update(
+        x0 + (i % cols) * buttonSize,
+        y - Math.floor(i / cols) * buttonSize,
+        buttonSize,
+        buttonSize
+      );
+    }
+    y -= sectionPad + buttonSize * Math.ceil(this.patterns.length / cols);
+    // Bonuses
     for (let i = 0; i < this.bonuses.length; i++) {
       this.bonuses[i].update(
         x0 + (i % cols) * buttonSize,
@@ -930,11 +998,13 @@ class Renderer {
     this.mouse = new Mouse(canvas);
     this.tooltip = new Tooltip(this.mouse, canvas);
     this.progressView = new ProgressView(this.game, this.scene, this.tooltip);
+    const patternTextures = renderPatternTextures(this.game.patterns);
     this.panelView = new PanelView(
       this.game,
       this.mouse,
       this.tooltip,
-      this.scene
+      this.scene,
+      patternTextures
     );
     this.gridView = new GridView(
       this.game,
@@ -970,7 +1040,7 @@ class Renderer {
     if (this.lastTime === null) {
       this.lastTime = time;
     }
-    // const dt = (time - this.lastTime) / 1000; // TODO: animate
+    // const dt = (time - this.lastTime) / 1000; // for animation
     this.lastTime = time;
 
     // Update views

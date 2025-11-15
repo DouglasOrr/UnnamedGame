@@ -3,8 +3,16 @@ import * as V from "./core/view";
 
 window.onload = () => {
   const game = new G.Game(
-    [G.PlusPattern, G.SquarePattern],
-    [G.SwapAction, G.SwapAction],
+    [G.PlusPattern, G.SquareMPattern, G.RhodeIslandZ],
+    [
+      G.SwapAction,
+      G.SwapAction,
+      G.SwapAction,
+      G.SwapAction,
+      G.SwapAction,
+      G.SwapAction,
+      G.SwapAction,
+    ],
     [G.FlatPointsBonus],
     9,
     9,

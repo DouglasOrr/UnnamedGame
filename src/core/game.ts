@@ -177,6 +177,8 @@ export const SwapAction: Action = {
   },
 };
 
+export const Actions = [SwapAction];
+
 // Bonuses
 
 export interface Bonus extends Item {
@@ -195,12 +197,35 @@ export const FlatPointsBonus: Bonus = {
   },
 };
 
+export const Bonuses = [FlatPointsBonus];
+
 // Patterns
 
 export interface Pattern extends Item {
   grid: Grid;
   points: number;
 }
+
+export const SquareSPattern: Pattern = {
+  name: "square_S",
+  title: "Square S",
+  grid: Grid.parse("xx/xx"),
+  points: 4,
+};
+
+export const SquareMPattern: Pattern = {
+  name: "square_M",
+  title: "Square M",
+  grid: Grid.parse("xxx/xxx/xxx"),
+  points: 20,
+};
+
+export const SquareLPattern: Pattern = {
+  name: "square_L",
+  title: "Square L",
+  grid: Grid.parse("xxxx/xxxx/xxxx/xxxx"),
+  points: 150,
+};
 
 export const PlusPattern: Pattern = {
   name: "plus",
@@ -209,12 +234,20 @@ export const PlusPattern: Pattern = {
   points: 25,
 };
 
-export const SquarePattern: Pattern = {
-  name: "square",
-  title: "Square",
-  grid: Grid.parse("xx/xx"),
-  points: 4,
+export const RhodeIslandZ: Pattern = {
+  name: "rhode_island_z",
+  title: "Rhode Island Z",
+  grid: Grid.parse("-xx/xx-"),
+  points: 12,
 };
+
+export const Patterns: Pattern[] = [
+  SquareSPattern,
+  SquareMPattern,
+  SquareLPattern,
+  PlusPattern,
+  RhodeIslandZ,
+];
 
 // Scoring
 
@@ -265,24 +298,32 @@ export class ComponentScore {
     return total;
   }
 
-  get scoreExplanation(): { name: string; points: number; count: number }[] {
-    const explanation: { name: string; points: number; count: number }[] = [];
+  get scoreExplanation(): {
+    pattern: Pattern | null;
+    points: number;
+    count: number;
+  }[] {
+    const explanation: {
+      pattern: Pattern | null;
+      points: number;
+      count: number;
+    }[] = [];
     for (const p of this.matches) {
       const existing = explanation.find(
-        (e) => e.name === p.pattern.name && e.points === p.pattern.points
+        (e) => e.pattern?.name === p.pattern.name
       );
       if (existing) {
         existing.count++;
       } else {
         explanation.push({
-          name: p.pattern.name,
+          pattern: p.pattern,
           points: p.pattern.points,
           count: 1,
         });
       }
     }
     explanation.push({
-      name: "",
+      pattern: null,
       points: 1,
       count: this.cellIndices.length,
     });
