@@ -8,6 +8,7 @@ function r<T extends Item>(item: T): void {
   }
   Items[item.name] = item;
 }
+let p = 0;
 
 // Actions
 
@@ -15,12 +16,13 @@ r({
   name: "swap",
   title: "Swap",
   description: "select 2 cells to swap",
-  priority: 1,
   execute(grid: Grid, arg: { i: number; j: number }): Grid {
     const cellsOut = grid.cells.slice();
     [cellsOut[arg.i], cellsOut[arg.j]] = [cellsOut[arg.j], cellsOut[arg.i]];
     return grid.replace(cellsOut);
   },
+  limit: Infinity,
+  priority: p++,
 });
 
 // Patterns
@@ -30,6 +32,7 @@ r({
   title: "Square S",
   grid: Grid.parse("xx/xx"),
   points: 4,
+  priority: p++,
 });
 
 r({
@@ -37,6 +40,7 @@ r({
   title: "Square M",
   grid: Grid.parse("xxx/xxx/xxx"),
   points: 20,
+  priority: p++,
 });
 
 r({
@@ -44,6 +48,7 @@ r({
   title: "Square L",
   grid: Grid.parse("xxxx/xxxx/xxxx/xxxx"),
   points: 150,
+  priority: p++,
 });
 
 r({
@@ -51,6 +56,7 @@ r({
   title: "Plus",
   grid: Grid.parse("-x-/xxx/-x-"),
   points: 25,
+  priority: p++,
 });
 
 r({
@@ -58,6 +64,8 @@ r({
   title: "Rhode Island Z",
   grid: Grid.parse("-xx/xx-"),
   points: 12,
+  limit: Infinity,
+  priority: p++,
 });
 
 // Bonuses
@@ -66,8 +74,9 @@ r({
   name: "flat_points",
   title: "-20",
   description: "subtract 20 nnats",
-  priority: 100,
   onScore(score: Score): void {
     score.flatPoints += 20;
   },
+  limit: Infinity,
+  priority: p++,
 });

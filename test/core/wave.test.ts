@@ -30,6 +30,7 @@ test("Pattern find", () => {
     name: "test",
     title: "Test",
     points: 0,
+    priority: 0,
   };
   const matches = G.findMatches(pattern, grid);
   expect(matches).toEqual([2, 5]);

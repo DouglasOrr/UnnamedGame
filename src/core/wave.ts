@@ -155,11 +155,12 @@ export class Grid {
 export interface Item {
   name: string;
   title: string;
+  priority: number;
+  limit?: number; // or 1
 }
 
 export interface Action extends Item {
   description: string;
-  priority: number;
   execute(grid: Grid, arg: any): Grid;
 }
 
@@ -170,7 +171,6 @@ export interface Pattern extends Item {
 
 export interface Bonus extends Item {
   description: string;
-  priority: number;
   onScore?(score: Score): void;
 }
 
