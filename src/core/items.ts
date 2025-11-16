@@ -1,4 +1,4 @@
-import { Item, Grid, Score } from "./game";
+import { Item, Grid, Score } from "./wave";
 
 export const Items = {} as { [name: string]: Item };
 

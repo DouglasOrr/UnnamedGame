@@ -1,4 +1,4 @@
-import * as G from "../../src/core/game";
+import * as G from "../../src/core/wave";
 
 test("Grid init", () => {
   const grid = G.Grid.random(3, 4);

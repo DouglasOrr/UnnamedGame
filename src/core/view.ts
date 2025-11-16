@@ -1,7 +1,7 @@
-import * as G from "./game";
+import * as W from "./wave";
 import * as THREE from "three";
 
-export function start(wave: G.Wave): void {
+export function start(wave: W.Wave): void {
   new Renderer(
     wave,
     document.getElementById("canvas-main") as HTMLCanvasElement
@@ -42,7 +42,7 @@ function loadTexture(path: string): THREE.Texture {
 
 type PatternTextures = { [key: string]: THREE.Texture };
 
-function renderPatternTextures(patterns: G.Pattern[]): PatternTextures {
+function renderPatternTextures(patterns: W.Pattern[]): PatternTextures {
   const textures: PatternTextures = {};
   for (const pattern of patterns) {
     textures[pattern.name] = renderPatternTexture(pattern);
@@ -50,7 +50,7 @@ function renderPatternTextures(patterns: G.Pattern[]): PatternTextures {
   return textures;
 }
 
-function renderPatternTexture(pattern: G.Pattern): THREE.Texture {
+function renderPatternTexture(pattern: W.Pattern): THREE.Texture {
   const CellSize = 32;
   const FillRatio = 0.8;
 
@@ -63,7 +63,7 @@ function renderPatternTexture(pattern: G.Pattern): THREE.Texture {
     const row = Math.floor(i / pattern.grid.cols);
     const col = i % pattern.grid.cols;
     const cell = pattern.grid.get(row, col);
-    if (cell !== G.Cell.O) {
+    if (cell !== W.Cell.O) {
       ctx.fillRect(
         canvas.width * 0.5 + CellSize * (col - pattern.grid.cols / 2),
         canvas.height * 0.5 + CellSize * (row - pattern.grid.rows / 2),
@@ -483,7 +483,7 @@ class GridView {
   private swapSrc: number | null = null;
 
   constructor(
-    private readonly wave: G.Wave,
+    private readonly wave: W.Wave,
     private readonly mouse: Mouse,
     private readonly panel: PanelView,
     private readonly progress: ProgressView,
@@ -549,7 +549,7 @@ class GridView {
         hoverIndices = new Set(component.cellIndices);
         for (const match of component.matches) {
           for (let j = 0; j < match.pattern.grid.elements; j++) {
-            if (match.pattern.grid.cells[j] !== G.Cell.O) {
+            if (match.pattern.grid.cells[j] !== W.Cell.O) {
               patternIndices.add(
                 match.position +
                   Math.floor(j / match.pattern.grid.cols) * grid.cols +
@@ -647,7 +647,7 @@ class ProgressView {
   private hoverComponent: number | null = null;
 
   constructor(
-    private readonly wave: G.Wave,
+    private readonly wave: W.Wave,
     scene: THREE.Scene,
     private readonly tooltip: Tooltip
   ) {
@@ -766,7 +766,7 @@ class PanelView {
   private readonly rerollPips: Pips;
 
   constructor(
-    private readonly wave: G.Wave,
+    private readonly wave: W.Wave,
     mouse: Mouse,
     tooltip: Tooltip,
     scene: THREE.Scene,
@@ -982,7 +982,7 @@ class Renderer {
   private readonly progressView: ProgressView;
   private readonly panelView: PanelView;
 
-  constructor(private readonly wave: G.Wave, canvas: HTMLCanvasElement) {
+  constructor(private readonly wave: W.Wave, canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.camera = new THREE.OrthographicCamera();
     this.camera.near = 0.1;

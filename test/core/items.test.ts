@@ -1,4 +1,4 @@
-import * as G from "../../src/core/game";
+import * as G from "../../src/core/wave";
 import { Items } from "../../src/core/items";
 
 test("Action swap", () => {

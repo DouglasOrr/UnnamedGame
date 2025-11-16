@@ -326,7 +326,6 @@ export interface WaveSettings {
 }
 
 export class Wave {
-  // State
   private state: {
     grid: Grid;
     score: Score;
@@ -460,13 +459,10 @@ export class Wave {
       this.roll = -1;
       this.reroll();
     } else {
-      setTimeout(() => {
-        this.frame = 0;
-        this.totalScore = 0;
-        this.roll = -1;
-        this.reroll();
-      }, 1000);
-      this.update();
+      this.frame = 0;
+      this.totalScore = 0;
+      this.roll = -1;
+      this.reroll();
     }
   }
 
