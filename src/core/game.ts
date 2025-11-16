@@ -312,50 +312,49 @@ export class Score {
 
 // Wave
 
+export interface WaveSettings {
+  // Settings
+  targetScore: number;
+  maxFrames: number;
+  maxRolls: number;
+  gridRows: number;
+  gridCols: number;
+  // Items
+  patterns: Pattern[];
+  actions: Action[];
+  bonuses: Bonus[];
+}
+
 export class Wave {
-  // Round settings
-  readonly maxFrames: number = 3;
-  readonly maxRolls: number = 1;
-  readonly targetScore: number;
   // State
-  state: {
+  private state: {
     grid: Grid;
     score: Score;
     action: number | null;
   }[] = [];
-  stateIndex: number = 0;
-  roundScore: number = 0;
+  private stateIndex: number = 0;
+
+  totalScore: number = 0;
   frame: number = 0;
   roll: number = 0;
 
-  constructor(
-    // Items
-    readonly patterns: Pattern[],
-    readonly actions: Action[],
-    readonly bonuses: Bonus[],
-    // Other settings
-    rows: number,
-    cols: number,
-    targetScore: number
-  ) {
-    const grid = Grid.random(rows, cols);
-    this.targetScore = targetScore;
-    this.push(grid, null);
+  constructor(readonly s: WaveSettings) {
+    this.push(Grid.random(s.gridRows, s.gridCols), null);
   }
 
   // Internal
 
   private update(): void {
     console.log(
-      `Frame ${this.frame + 1}/${this.maxFrames}`,
+      `Frame ${this.frame + 1}/${this.s.maxFrames}`,
       `Score ${this.score.total}`,
-      `Round Score ${this.roundScore}/${this.targetScore}`
+      `Round Score ${this.totalScore}/${this.s.targetScore}`
     );
   }
 
   private push(grid: Grid, action: number | null): void {
-    const score = Score.create(grid, this.patterns);
-    for (const bonus of this.bonuses) {
+    const score = Score.create(grid, this.s.patterns);
+    for (const bonus of this.s.bonuses) {
       if (bonus.onScore) {
         bonus.onScore(score);
       }
@@ -376,7 +375,7 @@ export class Wave {
   }
 
   get availableActions(): [Action, number][] {
-    return this.actions
+    return this.s.actions
       .map((action, idx) => [action, idx] as [Action, number])
       .filter(([, idx]) => {
         for (let i = 0; i <= this.stateIndex; i++) {
@@ -389,18 +388,29 @@ export class Wave {
   }
 
   get status(): "playing" | "win" | "lose" {
-    if (this.frame >= this.maxFrames || this.roundScore >= this.targetScore) {
-      return this.roundScore >= this.targetScore ? "win" : "lose";
+    if (
+      this.frame >= this.s.maxFrames ||
+      this.totalScore >= this.s.targetScore
+    ) {
+      return this.totalScore >= this.s.targetScore ? "win" : "lose";
     }
     return "playing";
   }
 
   get framesRemaining(): number {
-    return this.maxFrames - this.frame;
+    return this.s.maxFrames - this.frame;
   }
 
   get rollsRemaining(): number {
-    return this.maxRolls - this.roll;
+    return this.s.maxRolls - this.roll;
+  }
+
+  get canUndo(): boolean {
+    return this.stateIndex > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.stateIndex < this.state.length - 1;
   }
 
   // Actions
@@ -413,7 +423,7 @@ export class Wave {
         );
       }
     }
-    const grid = this.actions[action].execute(this.grid, arg);
+    const grid = this.s.actions[action].execute(this.grid, arg);
     this.state.splice(this.stateIndex + 1);
     this.push(grid, action);
   }
@@ -444,15 +454,15 @@ export class Wave {
   // Irreversible actions
 
   submit(): void {
-    this.roundScore += this.score.total;
+    this.totalScore += this.score.total;
     this.frame++;
-    if (this.frame < this.maxFrames && this.roundScore < this.targetScore) {
+    if (this.frame < this.s.maxFrames && this.totalScore < this.s.targetScore) {
       this.roll = -1;
       this.reroll();
     } else {
       setTimeout(() => {
         this.frame = 0;
-        this.roundScore = 0;
+        this.totalScore = 0;
         this.roll = -1;
         this.reroll();
       }, 1000);
@@ -462,7 +472,7 @@ export class Wave {
 
   reroll(): void {
     // Not undo-able, but (implicitly) refunds actions
-    if (this.roll < this.maxRolls) {
+    if (this.roll < this.s.maxRolls) {
       this.roll++;
       const grid = Grid.random(this.grid.rows, this.grid.cols);
       this.state.splice(0);

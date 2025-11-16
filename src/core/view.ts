@@ -560,7 +560,7 @@ class GridView {
         }
       }
       const actionIdx = this.panel.selectedAction();
-      if (actionIdx !== null && this.wave.actions[actionIdx].name == "swap") {
+      if (actionIdx !== null && this.wave.s.actions[actionIdx].name == "swap") {
         this.hoverOutline.line.visible = true;
         this.hoverOutline.update(
           cellsLeft + (mcol + 0.5) * cellSize,
@@ -701,7 +701,7 @@ class ProgressView {
     // Progress
     const progressAll = Math.max(
       0,
-      this.wave.targetScore - this.wave.roundScore
+      this.wave.s.targetScore - this.wave.totalScore
     );
     let progress2 = 0;
     let progress1 = Math.min(progressAll, this.wave.score.total);
@@ -716,7 +716,7 @@ class ProgressView {
 
     let y = 0;
     for (const [i, progress] of [progress0, progress1, progress2].entries()) {
-      const h = (innerH * progress) / this.wave.targetScore;
+      const h = (innerH * progress) / this.wave.s.targetScore;
       this.fill[i].position.set(
         cx,
         cy - innerH / 2 + y + h / 2,
@@ -745,7 +745,7 @@ class ProgressView {
         },
         [
           bounds.right,
-          cy + innerH * (progressAll / this.wave.targetScore - 1 / 2),
+          cy + innerH * (progressAll / this.wave.s.targetScore - 1 / 2),
         ]
       );
     } else {
@@ -796,7 +796,7 @@ class PanelView {
         scene,
         () => this.wave.reroll(),
         (button) => {
-          button.enabled = this.wave.roll < this.wave.maxRolls;
+          button.enabled = this.wave.roll < this.wave.s.maxRolls;
         }
       ),
       new Button(
@@ -807,7 +807,7 @@ class PanelView {
         scene,
         () => this.wave.undo(),
         (button) => {
-          button.enabled = this.wave.stateIndex > 0;
+          button.enabled = this.wave.canUndo;
         }
       ),
       new Button(
@@ -818,11 +818,11 @@ class PanelView {
         scene,
         () => this.wave.redo(),
         (button) => {
-          button.enabled = this.wave.stateIndex < this.wave.state.length - 1;
+          button.enabled = this.wave.canRedo;
         }
       ),
     ];
-    this.actions = this.wave.actions.map(
+    this.actions = this.wave.s.actions.map(
       (action) =>
         new Button(
           `img/actions/${action.name}.png`,
@@ -838,7 +838,7 @@ class PanelView {
           }
         )
     );
-    this.patterns = this.wave.patterns.map((pattern) => {
+    this.patterns = this.wave.s.patterns.map((pattern) => {
       return new Item(
         patternTextures[pattern.name],
         `<b>${pattern.title}</b> [${pattern.grid.rows}×${pattern.grid.cols}]` +
@@ -847,7 +847,7 @@ class PanelView {
         scene
       );
     });
-    this.bonuses = this.wave.bonuses.map(
+    this.bonuses = this.wave.s.bonuses.map(
       (bonus) =>
         new Item(
           `img/bonuses/${bonus.name}.png`,
@@ -857,8 +857,8 @@ class PanelView {
         )
     );
 
-    this.framePips = new Pips(this.wave.maxFrames, scene);
-    this.rerollPips = new Pips(this.wave.maxRolls, scene);
+    this.framePips = new Pips(this.wave.s.maxFrames, scene);
+    this.rerollPips = new Pips(this.wave.s.maxRolls, scene);
   }
 
   selectedAction(): number | null {
@@ -876,7 +876,7 @@ class PanelView {
     const rows =
       PipHeightRatio + // Pips: half-height
       Math.ceil(this.controls.length / cols) +
-      Math.ceil(this.wave.actions.length / cols) +
+      Math.ceil(this.wave.s.actions.length / cols) +
       Math.ceil(this.patterns.length / cols) +
       Math.ceil(this.bonuses.length / cols);
 
@@ -945,7 +945,7 @@ class PanelView {
         }
       }
     }
-    y -= sectionPad + buttonSize * Math.ceil(this.wave.actions.length / cols);
+    y -= sectionPad + buttonSize * Math.ceil(this.wave.s.actions.length / cols);
     // Patterns
     for (let i = 0; i < this.patterns.length; i++) {
       this.patterns[i].update(
@@ -998,7 +998,7 @@ class Renderer {
     this.mouse = new Mouse(canvas);
     this.tooltip = new Tooltip(this.mouse, canvas);
     this.progressView = new ProgressView(this.wave, this.scene, this.tooltip);
-    const patternTextures = renderPatternTextures(this.wave.patterns);
+    const patternTextures = renderPatternTextures(this.wave.s.patterns);
     this.panelView = new PanelView(
       this.wave,
       this.mouse,
