@@ -23,15 +23,6 @@ test("Grid getComponents", () => {
   ]);
 });
 
-test("Action swap", () => {
-  const grid = G.Grid.parse("x-/--");
-  const swapped = G.SwapAction.execute(grid, { i: 0, j: 2 });
-  expect(grid.get(0, 0)).toBe(G.Cell.X);
-  expect(grid.get(1, 0)).toBe(G.Cell.O);
-  expect(swapped.get(0, 0)).toBe(G.Cell.O);
-  expect(swapped.get(1, 0)).toBe(G.Cell.X);
-});
-
 test("Pattern find", () => {
   const grid = G.Grid.parse("xxx-/-x-x/x-x-");
   const pattern = {

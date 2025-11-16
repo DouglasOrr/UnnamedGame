@@ -157,29 +157,16 @@ export interface Item {
   title: string;
 }
 
-// Actions
-
 export interface Action extends Item {
   description: string;
   priority: number;
   execute(grid: Grid, arg: any): Grid;
 }
 
-export const SwapAction: Action = {
-  name: "swap",
-  title: "Swap",
-  description: "select 2 cells to swap",
-  priority: 1,
-  execute(grid: Grid, arg: { i: number; j: number }): Grid {
-    const cellsOut = grid.cells.slice();
-    [cellsOut[arg.i], cellsOut[arg.j]] = [cellsOut[arg.j], cellsOut[arg.i]];
-    return grid.replace(cellsOut);
-  },
-};
-
-export const Actions = [SwapAction];
-
-// Bonuses
+export interface Pattern extends Item {
+  grid: Grid;
+  points: number;
+}
 
 export interface Bonus extends Item {
   description: string;
@@ -187,67 +174,17 @@ export interface Bonus extends Item {
   onScore?(score: Score): void;
 }
 
-export const FlatPointsBonus: Bonus = {
-  name: "flat_points",
-  title: "-20",
-  description: "subtract 20 nats",
-  priority: 100,
-  onScore(score: Score): void {
-    score.flatPoints += 20;
-  },
-};
-
-export const Bonuses = [FlatPointsBonus];
-
-// Patterns
-
-export interface Pattern extends Item {
-  grid: Grid;
-  points: number;
+export function kind(item: Item): "action" | "pattern" | "bonus" {
+  if ((item as Action).execute !== undefined) {
+    return "action";
+  } else if ((item as Pattern).grid !== undefined) {
+    return "pattern";
+  } else if ((item as Bonus).onScore !== undefined) {
+    return "bonus";
+  } else {
+    throw new Error(`Unknown item kind: ${item.name}`);
+  }
 }
-
-export const SquareSPattern: Pattern = {
-  name: "square_S",
-  title: "Square S",
-  grid: Grid.parse("xx/xx"),
-  points: 4,
-};
-
-export const SquareMPattern: Pattern = {
-  name: "square_M",
-  title: "Square M",
-  grid: Grid.parse("xxx/xxx/xxx"),
-  points: 20,
-};
-
-export const SquareLPattern: Pattern = {
-  name: "square_L",
-  title: "Square L",
-  grid: Grid.parse("xxxx/xxxx/xxxx/xxxx"),
-  points: 150,
-};
-
-export const PlusPattern: Pattern = {
-  name: "plus",
-  title: "Plus",
-  grid: Grid.parse("-x-/xxx/-x-"),
-  points: 25,
-};
-
-export const RhodeIslandZ: Pattern = {
-  name: "rhode_island_z",
-  title: "Rhode Island Z",
-  grid: Grid.parse("-xx/xx-"),
-  points: 12,
-};
-
-export const Patterns: Pattern[] = [
-  SquareSPattern,
-  SquareMPattern,
-  SquareLPattern,
-  PlusPattern,
-  RhodeIslandZ,
-];
 
 // Scoring
 
