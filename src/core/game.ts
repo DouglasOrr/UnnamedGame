@@ -281,44 +281,36 @@ export class Score {
       this.flatPoints
     );
   }
-}
 
-export function getScore(grid: Grid, patterns: Pattern[]): Score {
-  // Find components
-  const gridC = grid.getComponents();
-  const components: ComponentScore[] = gridC.components.map(
-    (idx) => new ComponentScore(idx)
-  );
+  static create(grid: Grid, patterns: Pattern[]): Score {
+    // Find components
+    const gridC = grid.getComponents();
+    const components: ComponentScore[] = gridC.components.map(
+      (idx) => new ComponentScore(idx)
+    );
 
-  // Add pattern matches to components
-  for (const [pIdx, pattern] of patterns.entries()) {
-    for (const match of findMatches(pattern, grid)) {
-      const pComponents = new Set<number | null>();
-      for (let j = 0; j < pattern.grid.rows * pattern.grid.cols; j++) {
-        const r = Math.floor(j / pattern.grid.cols);
-        const c = j % pattern.grid.cols;
-        const cellIdx = match + r * grid.cols + c;
-        pComponents.add(gridC.cellToComponent[cellIdx]);
-      }
-      for (const component of pComponents) {
-        if (component !== null) {
-          components[component].addMatch(pattern, pIdx, match);
+    // Add pattern matches to components
+    for (const [pIdx, pattern] of patterns.entries()) {
+      for (const match of findMatches(pattern, grid)) {
+        const pComponents = new Set<number | null>();
+        for (let j = 0; j < pattern.grid.rows * pattern.grid.cols; j++) {
+          const r = Math.floor(j / pattern.grid.cols);
+          const c = j % pattern.grid.cols;
+          const cellIdx = match + r * grid.cols + c;
+          pComponents.add(gridC.cellToComponent[cellIdx]);
+        }
+        for (const component of pComponents) {
+          if (component !== null) {
+            components[component].addMatch(pattern, pIdx, match);
+          }
         }
       }
     }
+    return new Score(components, gridC.cellToComponent);
   }
-  return new Score(components, gridC.cellToComponent);
 }
 
 // Game state
-
-export interface GameState {
-  grid: Grid;
-  score: Score;
-  action: number | null;
-}
-
-export type Listener = () => void;
 
 export class Game {
   // Round settings
@@ -326,7 +318,11 @@ export class Game {
   readonly maxRolls: number = 1;
   readonly targetScore: number;
   // State
-  state: GameState[] = [];
+  state: {
+    grid: Grid;
+    score: Score;
+    action: number | null;
+  }[] = [];
   stateIndex: number = 0;
   roundScore: number = 0;
   frame: number = 0;
@@ -358,7 +354,7 @@ export class Game {
   }
 
   private push(grid: Grid, action: number | null): void {
-    const score = getScore(grid, this.patterns);
+    const score = Score.create(grid, this.patterns);
     for (const bonus of this.bonuses) {
       if (bonus.onScore) {
         bonus.onScore(score);
