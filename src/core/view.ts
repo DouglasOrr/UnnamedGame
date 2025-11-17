@@ -1,5 +1,6 @@
 import * as W from "./wave";
 import * as THREE from "three";
+import { Items } from "./items";
 
 export function start(wave: W.Wave): void {
   new Renderer(
@@ -192,6 +193,13 @@ class Tooltip {
   }
 }
 
+interface ViewContext {
+  mouse: Mouse;
+  tooltip: Tooltip;
+  patternTextures: PatternTextures;
+  scene: THREE.Scene;
+}
+
 // Components
 
 class Outline {
@@ -325,8 +333,7 @@ class Item {
   constructor(
     texture: string | THREE.Texture,
     private readonly tipText: string,
-    private readonly tooltip: Tooltip,
-    scene: THREE.Scene
+    private readonly context: ViewContext
   ) {
     const map = typeof texture === "string" ? loadTexture(texture) : texture;
     this.mesh = new THREE.Mesh(
@@ -338,14 +345,14 @@ class Item {
       })
     );
     this.mesh.position.z = 0.05;
-    scene.add(this.mesh);
+    this.context.scene.add(this.mesh);
   }
 
   update(cx: number, cy: number, w: number, h: number): void {
     const InnerSizeRatio = 0.6;
     this.mesh.position.set(cx, cy, this.mesh.position.z);
     this.mesh.scale.set(w * InnerSizeRatio, h * InnerSizeRatio, 1);
-    this.tooltip.show(
+    this.context.tooltip.show(
       this,
       {
         left: cx - w / 2,
@@ -367,9 +374,7 @@ class Button {
   constructor(
     texture: string,
     private readonly tipText: string | null,
-    private readonly mouse: Mouse,
-    private readonly tooltip: Tooltip,
-    scene: THREE.Scene,
+    private readonly context: ViewContext,
     private readonly click: (button: Button) => void,
     private readonly onUpdate?: (button: Button) => void
   ) {
@@ -381,9 +386,9 @@ class Button {
       })
     );
     this.mesh.position.z = 0.05;
-    scene.add(this.mesh);
+    this.context.scene.add(this.mesh);
 
-    this.outline = new Outline(0x447744, 0.05, scene);
+    this.outline = new Outline(0x447744, 0.05, this.context.scene);
   }
 
   update(cx: number, cy: number, w: number, h: number): void {
@@ -400,7 +405,7 @@ class Button {
     };
 
     // Hover: size & color
-    const hover = this.enabled && this.mouse.inside(cx, cy, w, h);
+    const hover = this.enabled && this.context.mouse.inside(cx, cy, w, h);
     const sizeRatio = hover ? HoverSizeRatio * InnerSizeRatio : InnerSizeRatio;
     this.mesh.position.set(cx, cy, this.mesh.position.z);
     this.mesh.scale.set(w * sizeRatio, h * sizeRatio, 1);
@@ -414,12 +419,12 @@ class Button {
     this.outline.update(cx, cy, w - 2 * pad, h - 2 * pad);
 
     // Clickable
-    if (hover && this.mouse.click) {
+    if (hover && this.context.mouse.click) {
       this.click(this);
     }
     // Tooltip
     if (this.tipText !== null) {
-      this.tooltip.show(
+      this.context.tooltip.show(
         this,
         {
           left: cx - w / 2,
@@ -484,26 +489,25 @@ class GridView {
 
   constructor(
     private readonly wave: W.Wave,
-    private readonly mouse: Mouse,
+    private readonly context: ViewContext,
     private readonly panel: PanelView,
-    private readonly progress: ProgressView,
-    scene: THREE.Scene
+    private readonly progress: ProgressView
   ) {
     this.cells = new InstancedSpriteSheet(
       "img/cells.png",
       [1, 3],
       wave.grid.cells.length,
-      scene
+      this.context.scene
     );
     this.carets = new InstancedSpriteSheet(
       "img/caret.png",
       [1, 1],
       2 * (wave.grid.rows + wave.grid.cols),
-      scene
+      this.context.scene
     );
-    this.hoverOutline = new Outline(0xaaaaaa, 0.05, scene);
+    this.hoverOutline = new Outline(0xaaaaaa, 0.05, this.context.scene);
     this.hoverOutline.line.visible = false;
-    this.srcOutline = new Outline(0x447744, 0.05, scene);
+    this.srcOutline = new Outline(0x447744, 0.05, this.context.scene);
     this.srcOutline.line.visible = false;
   }
 
@@ -538,8 +542,12 @@ class GridView {
     let hoverIndices = new Set<number>();
     let patternIndices = new Set<number>();
     let hoverComponent: number | null = null;
-    const mrow = Math.floor((cellsTop - this.mouse.position[1]) / cellSize);
-    const mcol = Math.floor((this.mouse.position[0] - cellsLeft) / cellSize);
+    const mrow = Math.floor(
+      (cellsTop - this.context.mouse.position[1]) / cellSize
+    );
+    const mcol = Math.floor(
+      (this.context.mouse.position[0] - cellsLeft) / cellSize
+    );
     this.hoverOutline.line.visible = false;
     if (0 <= mrow && mrow < grid.rows && 0 <= mcol && mcol < grid.cols) {
       // Mouse is over the grid of cells
@@ -568,7 +576,7 @@ class GridView {
           outlineSize,
           outlineSize
         );
-        if (this.mouse.click) {
+        if (this.context.mouse.click) {
           const cellIdx = mrow * grid.cols + mcol;
           if (this.swapSrc === null) {
             this.swapSrc = cellIdx;
@@ -648,8 +656,7 @@ class ProgressView {
 
   constructor(
     private readonly wave: W.Wave,
-    scene: THREE.Scene,
-    private readonly tooltip: Tooltip
+    private readonly context: ViewContext
   ) {
     this.outline = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
@@ -657,13 +664,13 @@ class ProgressView {
     );
     this.outline.position.z = 0;
 
-    scene.add(this.outline);
+    this.context.scene.add(this.outline);
     this.background = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ color: backgroundColor().getHex() })
     );
     this.background.position.z = 0.01;
-    scene.add(this.background);
+    this.context.scene.add(this.background);
 
     // Colors: remaining nats, scored nats, hover nats
     this.fill = [0x447744, 0xb37e1d, 0xdddddd].map(
@@ -675,7 +682,7 @@ class ProgressView {
     ) as unknown as [THREE.Mesh, THREE.Mesh, THREE.Mesh];
     for (const f of this.fill) {
       f.position.z = 0.02;
-      scene.add(f);
+      this.context.scene.add(f);
     }
   }
 
@@ -729,7 +736,7 @@ class ProgressView {
     // Tooltip
     if (this.hoverComponent !== null) {
       const component = this.wave.score.components[this.hoverComponent];
-      this.tooltip.show(
+      this.context.tooltip.show(
         this,
         component.score > 0,
         () => {
@@ -749,7 +756,7 @@ class ProgressView {
         ]
       );
     } else {
-      this.tooltip.show(this, bounds, () => {
+      this.context.tooltip.show(this, bounds, () => {
         return `${progressAll} nnats (- ${this.wave.score.total})`;
       });
     }
@@ -765,35 +772,22 @@ class PanelView {
   private readonly framePips: Pips;
   private readonly rerollPips: Pips;
 
-  constructor(
-    private readonly wave: W.Wave,
-    mouse: Mouse,
-    tooltip: Tooltip,
-    scene: THREE.Scene,
-    patternTextures: PatternTextures
-  ) {
+  constructor(private readonly wave: W.Wave, context: ViewContext) {
     this.background = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ color: 0x2b2b2b })
     );
     this.background.position.z = 0.01;
-    scene.add(this.background);
+    context.scene.add(this.background);
 
     this.controls = [
-      new Button(
-        "img/submit.png",
-        /*tipText*/ null,
-        mouse,
-        tooltip,
-        scene,
-        () => this.wave.submit()
+      new Button("img/submit.png", /*tipText*/ null, context, () =>
+        this.wave.submit()
       ),
       new Button(
         "img/reroll.png",
         /*tipText*/ null,
-        mouse,
-        tooltip,
-        scene,
+        context,
         () => this.wave.reroll(),
         (button) => {
           button.enabled = this.wave.roll < this.wave.s.maxRolls;
@@ -802,9 +796,7 @@ class PanelView {
       new Button(
         "img/undo.png",
         /*tipText*/ null,
-        mouse,
-        tooltip,
-        scene,
+        context,
         () => this.wave.undo(),
         (button) => {
           button.enabled = this.wave.canUndo;
@@ -813,9 +805,7 @@ class PanelView {
       new Button(
         "img/redo.png",
         /*tipText*/ null,
-        mouse,
-        tooltip,
-        scene,
+        context,
         () => this.wave.redo(),
         (button) => {
           button.enabled = this.wave.canRedo;
@@ -827,9 +817,7 @@ class PanelView {
         new Button(
           `img/actions/${action.name}.png`,
           `<b>${action.title}</b><br>${action.description}`,
-          mouse,
-          tooltip,
-          scene,
+          context,
           (button) => {
             this.actions.forEach((b) => {
               b.selected = false;
@@ -840,11 +828,10 @@ class PanelView {
     );
     this.patterns = this.wave.s.patterns.map((pattern) => {
       return new Item(
-        patternTextures[pattern.name],
+        context.patternTextures[pattern.name],
         `<b>${pattern.title}</b> [${pattern.grid.rows}×${pattern.grid.cols}]` +
           `<br>-${pattern.points} nnats`,
-        tooltip,
-        scene
+        context
       );
     });
     this.bonuses = this.wave.s.bonuses.map(
@@ -852,13 +839,12 @@ class PanelView {
         new Item(
           `img/bonuses/${bonus.name}.png`,
           `<b>${bonus.title}</b><br>${bonus.description}`,
-          tooltip,
-          scene
+          context
         )
     );
 
-    this.framePips = new Pips(this.wave.s.maxFrames, scene);
-    this.rerollPips = new Pips(this.wave.s.maxRolls, scene);
+    this.framePips = new Pips(this.wave.s.maxFrames, context.scene);
+    this.rerollPips = new Pips(this.wave.s.maxRolls, context.scene);
   }
 
   selectedAction(): number | null {
@@ -971,13 +957,16 @@ class PanelView {
 // Core rendering
 
 class Renderer {
+  // Shared
   private readonly renderer: THREE.WebGLRenderer;
-  private readonly scene: THREE.Scene;
   private readonly camera: THREE.OrthographicCamera;
   private lastTime: number | null = null;
-
   private readonly mouse: Mouse;
   private readonly tooltip: Tooltip;
+  private readonly patternTextures: PatternTextures;
+
+  // Scene
+  private readonly scene: THREE.Scene;
   private readonly gridView: GridView;
   private readonly progressView: ProgressView;
   private readonly panelView: PanelView;
@@ -988,39 +977,35 @@ class Renderer {
     this.camera.near = 0.1;
     this.camera.far = 1000;
     this.camera.position.z = 10;
+    this.mouse = new Mouse(canvas);
+    this.tooltip = new Tooltip(this.mouse, canvas);
+    this.patternTextures = renderPatternTextures(
+      Object.values(Items).filter(
+        (item): item is W.Pattern => W.kind(item) === "pattern"
+      )
+    );
+
+    // Views
     this.scene = new THREE.Scene();
     this.scene.background = backgroundColor();
+    const context: ViewContext = {
+      mouse: this.mouse,
+      tooltip: this.tooltip,
+      patternTextures: this.patternTextures,
+      scene: this.scene,
+    };
+    this.progressView = new ProgressView(this.wave, context);
+    this.panelView = new PanelView(this.wave, context);
+    this.gridView = new GridView(
+      this.wave,
+      context,
+      this.panelView,
+      this.progressView
+    );
+
     this.onResize();
     window.addEventListener("resize", this.onResize.bind(this));
     requestAnimationFrame(this.onAnimate.bind(this));
-
-    // Views
-    this.mouse = new Mouse(canvas);
-    this.tooltip = new Tooltip(this.mouse, canvas);
-    this.progressView = new ProgressView(this.wave, this.scene, this.tooltip);
-    const patternTextures = renderPatternTextures(this.wave.s.patterns);
-    this.panelView = new PanelView(
-      this.wave,
-      this.mouse,
-      this.tooltip,
-      this.scene,
-      patternTextures
-    );
-    this.gridView = new GridView(
-      this.wave,
-      this.mouse,
-      this.panelView,
-      this.progressView,
-      this.scene
-    );
-
-    // Keyboard controls
-    window.addEventListener("keydown", (e) => {
-      if (e.key === " ") {
-        e.preventDefault();
-        this.wave.submit();
-      }
-    });
   }
 
   private onResize() {
@@ -1042,16 +1027,16 @@ class Renderer {
     }
     // const dt = (time - this.lastTime) / 1000; // for animation
     this.lastTime = time;
+    this.mouse.update();
 
     // Update views
-    this.mouse.update();
     const layout = this.topLevelLayout();
     this.gridView.update(layout.grid);
     this.progressView.update(layout.progress);
     this.panelView.update(layout.panel);
-    this.mouse.postUpdate();
 
     // Render
+    this.mouse.postUpdate();
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(this.onAnimate.bind(this));
     LOG.tick();
