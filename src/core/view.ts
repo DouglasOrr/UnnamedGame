@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { Items } from "./items";
 import * as R from "./run";
 import * as W from "./wave";
 
@@ -34,51 +33,6 @@ type Box = { left: number; right: number; bottom: number; top: number };
 
 function backgroundColor(): THREE.Color {
   return new THREE.Color(getComputedStyle(document.body).backgroundColor);
-}
-
-function loadTexture(path: string): THREE.Texture {
-  return new THREE.TextureLoader().load(path, undefined, undefined, (err) =>
-    console.error(`Error loading texture ${path}`, err)
-  );
-}
-
-type PatternTextures = { [key: string]: THREE.Texture };
-
-function renderPatternTextures(patterns: W.Pattern[]): PatternTextures {
-  const textures: PatternTextures = {};
-  for (const pattern of patterns) {
-    textures[pattern.name] = renderPatternTexture(pattern);
-  }
-  return textures;
-}
-
-function renderPatternTexture(pattern: W.Pattern): THREE.Texture {
-  const CellSize = 32;
-  const FillRatio = 0.8;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height =
-    CellSize * Math.max(pattern.grid.cols, pattern.grid.rows);
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#ffffff";
-  for (let i = 0; i < pattern.grid.elements; i++) {
-    const row = Math.floor(i / pattern.grid.cols);
-    const col = i % pattern.grid.cols;
-    const cell = pattern.grid.get(row, col);
-    if (cell !== W.Cell.O) {
-      ctx.fillRect(
-        canvas.width * 0.5 + CellSize * (col - pattern.grid.cols / 2),
-        canvas.height * 0.5 + CellSize * (row - pattern.grid.rows / 2),
-        FillRatio * CellSize,
-        FillRatio * CellSize
-      );
-    }
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  texture.generateMipmaps = false;
-  return texture;
 }
 
 function worldToScreen(
@@ -201,21 +155,58 @@ class Tooltip {
 interface ViewContext {
   mouse: Mouse;
   tooltip: Tooltip;
-  patternTextures: PatternTextures;
   scene: THREE.Scene;
   camera: THREE.OrthographicCamera;
 }
 
-function itemTexture(item: W.Item, context: ViewContext): THREE.Texture {
-  if (item.kind === "pattern") {
-    return context.patternTextures[item.name];
-  } else if (item.kind === "action") {
-    return loadTexture(`img/actions/${item.name}.png`);
-  } else if (item.kind === "bonus") {
-    return loadTexture(`img/bonuses/${item.name}.png`);
-  } else {
-    throw new Error(`Unknown item kind for ${JSON.stringify(item)}`);
+// Textures
+
+const TextureCache: { [id: string]: THREE.Texture } = {};
+
+function renderPatternTexture(pattern: W.Pattern): THREE.Texture {
+  const CellSize = 32;
+  const FillRatio = 0.8;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height =
+    CellSize * Math.max(pattern.grid.cols, pattern.grid.rows);
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < pattern.grid.elements; i++) {
+    const row = Math.floor(i / pattern.grid.cols);
+    const col = i % pattern.grid.cols;
+    const cell = pattern.grid.get(row, col);
+    if (cell !== W.Cell.O) {
+      ctx.fillRect(
+        canvas.width * 0.5 + CellSize * (col - pattern.grid.cols / 2),
+        canvas.height * 0.5 + CellSize * (row - pattern.grid.rows / 2),
+        FillRatio * CellSize,
+        FillRatio * CellSize
+      );
+    }
   }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  texture.generateMipmaps = false;
+  return texture;
+}
+
+function loadTexture(p: string | W.Item): THREE.Texture {
+  const key = typeof p === "string" ? p : `img/${p.kind}/${p.name}.png`;
+  if (!TextureCache[key]) {
+    if (typeof p === "string" || p.kind !== "pattern") {
+      TextureCache[key] = new THREE.TextureLoader().load(
+        key,
+        undefined,
+        undefined,
+        (err) => console.error(`Error loading texture ${key}`, err)
+      );
+    } else {
+      TextureCache[key] = renderPatternTexture(p);
+    }
+  }
+  return TextureCache[key];
 }
 
 // Components
@@ -767,7 +758,7 @@ function itemButton(
   } else {
     throw new Error(`Unknown item kind for item ${JSON.stringify(item)}`);
   }
-  return new Button(itemTexture(item, context), tipText, context, click);
+  return new Button(loadTexture(item), tipText, context, click);
 }
 
 class DynamicRowsView {
@@ -872,7 +863,7 @@ class PanelView {
     const controls = PanelView.Controls.map(
       (control) =>
         new Button(
-          loadTexture(`img/controls/${control.name}.png`),
+          loadTexture(`img/control/${control.name}.png`),
           /*tipText*/ null,
           context,
           () => control.click(this.wave),
@@ -1142,7 +1133,6 @@ class Renderer {
   private readonly camera: THREE.OrthographicCamera;
   private readonly mouse: Mouse;
   private readonly tooltip: Tooltip;
-  private readonly patternTextures: PatternTextures;
 
   // State
   private lastTime: number | null = null;
@@ -1156,11 +1146,6 @@ class Renderer {
     this.camera.position.z = 10;
     this.mouse = new Mouse(canvas);
     this.tooltip = new Tooltip(this.mouse, canvas);
-    this.patternTextures = renderPatternTextures(
-      Object.values(Items).filter(
-        (item): item is W.Pattern => item.kind === "pattern"
-      )
-    );
 
     this.onResize();
     window.addEventListener("resize", this.onResize.bind(this));
@@ -1178,7 +1163,6 @@ class Renderer {
     const context = {
       mouse: this.mouse,
       tooltip: this.tooltip,
-      patternTextures: this.patternTextures,
       scene: new THREE.Scene(),
       camera: this.camera,
     };
