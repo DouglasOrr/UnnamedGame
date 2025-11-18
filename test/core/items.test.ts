@@ -13,8 +13,8 @@ test("Action swap", () => {
 test("all patterns have one connected component", () => {
   for (const itemName in Items) {
     const item = Items[itemName];
-    if (G.kind(item) === "pattern") {
-      const c = (item as G.Pattern).grid.getComponents();
+    if (item.kind === "pattern") {
+      const c = item.grid.getComponents();
       expect(c.components.length).toBe(1);
     }
   }

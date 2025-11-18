@@ -152,39 +152,32 @@ export class Grid {
 
 // Items
 
-export interface Item {
+export interface ItemBase {
   name: string;
   title: string;
   priority: number;
   limit?: number; // or 1
 }
 
-export interface Action extends Item {
+export interface Action extends ItemBase {
+  kind: "action";
   description: string;
   execute(grid: Grid, arg: any): Grid;
 }
 
-export interface Pattern extends Item {
+export interface Pattern extends ItemBase {
+  kind: "pattern";
   grid: Grid;
   points: number;
 }
 
-export interface Bonus extends Item {
+export interface Bonus extends ItemBase {
+  kind: "bonus";
   description: string;
   onScore?(score: Score): void;
 }
 
-export function kind(item: Item): "action" | "pattern" | "bonus" {
-  if ((item as Action).execute !== undefined) {
-    return "action";
-  } else if ((item as Pattern).grid !== undefined) {
-    return "pattern";
-  } else if ((item as Bonus).onScore !== undefined) {
-    return "bonus";
-  } else {
-    throw new Error(`Unknown item kind: ${item.name}`);
-  }
-}
+export type Item = Action | Pattern | Bonus;
 
 // Scoring
 
@@ -326,6 +319,7 @@ export interface WaveSettings {
 }
 
 export class Wave {
+  phase: "wave" = "wave";
   private state: {
     grid: Grid;
     score: Score;
@@ -343,14 +337,6 @@ export class Wave {
 
   // Internal
 
-  private update(): void {
-    console.log(
-      `Frame ${this.frame + 1}/${this.s.maxFrames}`,
-      `Score ${this.score.total}`,
-      `Round Score ${this.totalScore}/${this.s.targetScore}`
-    );
-  }
-
   private push(grid: Grid, action: number | null): void {
     const score = Score.create(grid, this.s.patterns);
     for (const bonus of this.s.bonuses) {
@@ -360,7 +346,6 @@ export class Wave {
     }
     this.state.push({ grid, score, action });
     this.stateIndex = this.state.length - 1;
-    this.update();
   }
 
   // Properties
@@ -439,28 +424,25 @@ export class Wave {
   undo(): void {
     if (this.stateIndex > 0) {
       this.stateIndex--;
-      this.update();
     }
   }
 
   redo(): void {
     if (this.stateIndex < this.state.length - 1) {
       this.stateIndex++;
-      this.update();
     }
   }
 
   // Irreversible actions
 
   submit(): void {
+    if (this.status !== "playing") {
+      console.error("Submit after wave is over");
+      return;
+    }
     this.totalScore += this.score.total;
     this.frame++;
     if (this.frame < this.s.maxFrames && this.totalScore < this.s.targetScore) {
-      this.roll = -1;
-      this.reroll();
-    } else {
-      this.frame = 0;
-      this.totalScore = 0;
       this.roll = -1;
       this.reroll();
     }
@@ -473,7 +455,6 @@ export class Wave {
       const grid = Grid.random(this.grid.rows, this.grid.cols);
       this.state.splice(0);
       this.push(grid, null);
-      this.update();
     }
   }
 }

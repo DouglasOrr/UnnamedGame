@@ -1,4 +1,4 @@
-import { Item, Grid, Score } from "./wave";
+import { Grid, Item, Score } from "./wave";
 
 export const Items = {} as { [name: string]: Item };
 
@@ -13,6 +13,7 @@ let p = 0;
 // Actions
 
 r({
+  kind: "action",
   name: "swap",
   title: "Swap",
   description: "select 2 cells to swap",
@@ -28,6 +29,7 @@ r({
 // Patterns
 
 r({
+  kind: "pattern",
   name: "square_S",
   title: "Square S",
   grid: Grid.parse("xx/xx"),
@@ -36,6 +38,7 @@ r({
 });
 
 r({
+  kind: "pattern",
   name: "square_M",
   title: "Square M",
   grid: Grid.parse("xxx/xxx/xxx"),
@@ -44,6 +47,7 @@ r({
 });
 
 r({
+  kind: "pattern",
   name: "square_L",
   title: "Square L",
   grid: Grid.parse("xxxx/xxxx/xxxx/xxxx"),
@@ -52,6 +56,7 @@ r({
 });
 
 r({
+  kind: "pattern",
   name: "plus",
   title: "Plus",
   grid: Grid.parse("-x-/xxx/-x-"),
@@ -60,6 +65,7 @@ r({
 });
 
 r({
+  kind: "pattern",
   name: "rhode_island_Z",
   title: "Rhode Island Z",
   grid: Grid.parse("-xx/xx-"),
@@ -71,6 +77,7 @@ r({
 // Bonuses
 
 r({
+  kind: "bonus",
   name: "flat_points",
   title: "-20",
   description: "subtract 20 nnats",

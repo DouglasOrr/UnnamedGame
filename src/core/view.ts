@@ -1,10 +1,11 @@
-import * as W from "./wave";
 import * as THREE from "three";
 import { Items } from "./items";
+import * as R from "./run";
+import * as W from "./wave";
 
-export function start(wave: W.Wave): void {
+export function start(run: R.Run): void {
   new Renderer(
-    wave,
+    run,
     document.getElementById("canvas-main") as HTMLCanvasElement
   );
 }
@@ -155,6 +156,11 @@ class Tooltip {
     document.body.appendChild(this.element);
   }
 
+  hide() {
+    this.element.style.display = "none";
+    this.elementTag = null;
+  }
+
   show(
     tag: any,
     when: boolean | Box,
@@ -187,8 +193,7 @@ class Tooltip {
       this.element.style.top = `${tipY}px`;
       this.elementTag = tag;
     } else if (this.elementTag === tag) {
-      this.element.style.display = "none";
-      this.elementTag = null;
+      this.hide();
     }
   }
 }
@@ -201,9 +206,25 @@ interface ViewContext {
   camera: THREE.OrthographicCamera;
 }
 
+function itemTexture(item: W.Item, context: ViewContext): THREE.Texture {
+  if (item.kind === "pattern") {
+    return context.patternTextures[item.name];
+  } else if (item.kind === "action") {
+    return loadTexture(`img/actions/${item.name}.png`);
+  } else if (item.kind === "bonus") {
+    return loadTexture(`img/bonuses/${item.name}.png`);
+  } else {
+    throw new Error(`Unknown item kind for ${JSON.stringify(item)}`);
+  }
+}
+
 // Components
 
-class Outline {
+interface Component {
+  update(cx: number, cy: number, w: number, h: number): void;
+}
+
+class Outline implements Component {
   readonly line: THREE.Line;
 
   constructor(color: number, z: number, scene: THREE.Scene) {
@@ -328,61 +349,23 @@ class InstancedSpriteSheet {
   }
 }
 
-class Item {
-  private readonly mesh: THREE.Mesh;
-
-  constructor(
-    texture: string | THREE.Texture,
-    private readonly tipText: string,
-    private readonly context: ViewContext
-  ) {
-    const map = typeof texture === "string" ? loadTexture(texture) : texture;
-    this.mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({
-        map,
-        transparent: true,
-        color: 0xaaaaaa,
-      })
-    );
-    this.mesh.position.z = 0.05;
-    this.context.scene.add(this.mesh);
-  }
-
-  update(cx: number, cy: number, w: number, h: number): void {
-    const InnerSizeRatio = 0.6;
-    this.mesh.position.set(cx, cy, this.mesh.position.z);
-    this.mesh.scale.set(w * InnerSizeRatio, h * InnerSizeRatio, 1);
-    this.context.tooltip.show(
-      this,
-      {
-        left: cx - w / 2,
-        right: cx + w / 2,
-        bottom: cy - h / 2,
-        top: cy + h / 2,
-      },
-      () => this.tipText
-    );
-  }
-}
-
-class Button {
+class Button implements Component {
   private readonly mesh: THREE.Mesh;
   private readonly outline: Outline;
   enabled: boolean = true;
   selected: boolean = false;
 
   constructor(
-    texture: string,
+    texture: THREE.Texture,
     private readonly tipText: string | null,
     private readonly context: ViewContext,
-    private readonly click: (button: Button) => void,
+    private readonly click?: (button: Button) => void,
     private readonly onUpdate?: (button: Button) => void
   ) {
     this.mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({
-        map: loadTexture(texture),
+        map: texture,
         transparent: true,
       })
     );
@@ -406,7 +389,8 @@ class Button {
     };
 
     // Hover: size & color
-    const hover = this.enabled && this.context.mouse.inside(cx, cy, w, h);
+    const hover =
+      this.click && this.enabled && this.context.mouse.inside(cx, cy, w, h);
     const sizeRatio = hover ? HoverSizeRatio * InnerSizeRatio : InnerSizeRatio;
     this.mesh.position.set(cx, cy, this.mesh.position.z);
     this.mesh.scale.set(w * sizeRatio, h * sizeRatio, 1);
@@ -419,7 +403,7 @@ class Button {
     this.outline.line.visible = this.selected && this.enabled;
     this.outline.update(cx, cy, w - 2 * pad, h - 2 * pad);
 
-    // Clickable
+    // Click
     if (hover && this.context.mouse.click) {
       this.click(this);
     }
@@ -439,11 +423,12 @@ class Button {
   }
 }
 
-class Pips {
+class Pips implements Component {
+  filled: number;
   private readonly fills: THREE.Mesh[] = [];
   private readonly outlines: THREE.Mesh[] = [];
 
-  constructor(private readonly count: number, scene: THREE.Scene) {
+  constructor(readonly total: number, scene: THREE.Scene) {
     const fillGeometry = new THREE.CircleGeometry(0.5, 24);
     const outlineGeometry = new THREE.RingGeometry(0.42, 0.5, 24);
     const fillMaterial = new THREE.MeshBasicMaterial({ color: 0xb37e1d });
@@ -451,7 +436,7 @@ class Pips {
       color: 0x888888,
       side: THREE.DoubleSide,
     });
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < this.total; i++) {
       const outline = new THREE.Mesh(outlineGeometry, outlineMaterial.clone());
       outline.position.z = 0.02;
       this.outlines.push(outline);
@@ -462,19 +447,20 @@ class Pips {
       this.fills.push(fill);
       scene.add(fill);
     }
+    this.filled = total;
   }
 
-  update(cx: number, cy: number, w: number, h: number, nfilled: number): void {
-    const filled = Math.max(0, Math.min(this.count, Math.floor(nfilled)));
-    const deltax = w / this.count;
+  update(cx: number, cy: number, w: number, h: number): void {
+    const filled = Math.max(0, Math.min(this.total, Math.floor(this.filled)));
+    const deltax = w / this.total;
     const scale = Math.min(h, deltax) * 0.7;
-    for (let i = 0; i < this.count; i++) {
+    for (let i = 0; i < this.total; i++) {
       const x = cx - w / 2 + (i + 0.5) * deltax;
       this.outlines[i].position.set(x, cy, this.outlines[i].position.z);
       this.outlines[i].scale.set(scale, scale, 1);
       this.fills[i].position.set(x, cy, this.fills[i].position.z);
       this.fills[i].scale.set(scale, scale, 1);
-      this.fills[i].visible = this.count - 1 - i < filled;
+      this.fills[i].visible = this.total - 1 - i < filled;
     }
   }
 }
@@ -764,88 +750,166 @@ class ProgressView {
   }
 }
 
-class PanelView {
-  private readonly background: THREE.Mesh;
-  private readonly controls: Button[];
-  private readonly actions: Button[];
-  private readonly patterns: Item[];
-  private readonly bonuses: Item[];
-  private readonly framePips: Pips;
-  private readonly rerollPips: Pips;
+function itemButton(
+  item: W.Item,
+  context: ViewContext,
+  click?: (button: Button) => void
+): Button {
+  let tipText: string;
+  if (item.kind === "action") {
+    tipText = `<b>${item.title}</b><br>${item.description}`;
+  } else if (item.kind === "pattern") {
+    tipText =
+      `<b>${item.title}</b> [${item.grid.rows}×${item.grid.cols}]` +
+      `<br>-${item.points} nnats`;
+  } else if (item.kind === "bonus") {
+    tipText = `<b>${item.title}</b><br>${item.description}`;
+  } else {
+    throw new Error(`Unknown item kind for item ${JSON.stringify(item)}`);
+  }
+  return new Button(itemTexture(item, context), tipText, context, click);
+}
 
-  constructor(private readonly wave: W.Wave, context: ViewContext) {
+class DynamicRowsView {
+  private readonly background: THREE.Mesh;
+
+  constructor(
+    readonly rows: {
+      components: Component[];
+      height?: number;
+      padBelow?: boolean;
+    }[],
+    readonly cols: number,
+    scene: THREE.Scene
+  ) {
     this.background = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({ color: 0x2b2b2b })
     );
     this.background.position.z = 0.01;
-    context.scene.add(this.background);
+    scene.add(this.background);
+  }
 
-    this.controls = [
-      new Button("img/submit.png", /*tipText*/ null, context, () =>
-        this.wave.submit()
-      ),
-      new Button(
-        "img/reroll.png",
-        /*tipText*/ null,
-        context,
-        () => this.wave.reroll(),
-        (button) => {
-          button.enabled = this.wave.roll < this.wave.s.maxRolls;
-        }
-      ),
-      new Button(
-        "img/undo.png",
-        /*tipText*/ null,
-        context,
-        () => this.wave.undo(),
-        (button) => {
-          button.enabled = this.wave.canUndo;
-        }
-      ),
-      new Button(
-        "img/redo.png",
-        /*tipText*/ null,
-        context,
-        () => this.wave.redo(),
-        (button) => {
-          button.enabled = this.wave.canRedo;
-        }
-      ),
-    ];
-    this.actions = this.wave.s.actions.map(
-      (action) =>
+  update(bounds: Box): void {
+    const InsetRatio = 0.02;
+    const SectionPadRatio = 0.04;
+
+    // Layout parameters
+    let rowsCount = 0;
+    let padCount = 0;
+    for (const [j, r] of this.rows.entries()) {
+      rowsCount += (r.height ?? 1) * Math.ceil(r.components.length / this.cols);
+      padCount += +(r.padBelow ?? j < this.rows.length - 1);
+    }
+    const cx = (bounds.left + bounds.right) / 2;
+    const cy = (bounds.bottom + bounds.top) / 2;
+    const w = bounds.right - bounds.left;
+    const h = bounds.top - bounds.bottom;
+    const inset = InsetRatio * Math.min(w, h);
+    const sectionPad = SectionPadRatio * Math.min(w, h);
+    const size = Math.min(
+      (w - 2 * inset) / this.cols,
+      (h - 2 * inset - padCount * sectionPad) / rowsCount
+    );
+
+    // Background
+    this.background.position.set(cx, cy, this.background.position.z);
+    this.background.scale.set(w, h, 1);
+
+    // Rows
+    const x0 = bounds.left + inset + size / 2;
+    let y = bounds.top - inset;
+    for (const [j, row] of this.rows.entries()) {
+      const cHeight = (row.height ?? 1) * size;
+      y -= cHeight / 2;
+      for (let i = 0; i < row.components.length; i++) {
+        const button = row.components[i];
+        button.update(
+          x0 + (i % this.cols) * size,
+          y - Math.floor(i / this.cols) * size,
+          size,
+          cHeight
+        );
+      }
+      y -= cHeight * Math.ceil(row.components.length / this.cols) - cHeight / 2;
+      if (row.padBelow ?? j < this.rows.length - 1) {
+        y -= sectionPad;
+      }
+    }
+  }
+}
+
+class PanelView {
+  private readonly panelView: DynamicRowsView;
+  private readonly actions: Button[];
+  private readonly framePips: Pips;
+  private readonly rerollPips: Pips;
+
+  private static readonly Controls = [
+    {
+      name: "submit",
+      click: (wave: W.Wave) => wave.submit(),
+      enable: () => true,
+    },
+    {
+      name: "reroll",
+      click: (wave: W.Wave) => wave.reroll(),
+      enable: (wave: W.Wave) => wave.roll < wave.s.maxRolls,
+    },
+    {
+      name: "undo",
+      click: (wave: W.Wave) => wave.undo(),
+      enable: (wave: W.Wave) => wave.canUndo,
+    },
+    {
+      name: "redo",
+      click: (wave: W.Wave) => wave.redo(),
+      enable: (wave: W.Wave) => wave.canRedo,
+    },
+  ];
+
+  constructor(private readonly wave: W.Wave, context: ViewContext) {
+    const controls = PanelView.Controls.map(
+      (control) =>
         new Button(
-          `img/actions/${action.name}.png`,
-          `<b>${action.title}</b><br>${action.description}`,
+          loadTexture(`img/controls/${control.name}.png`),
+          /*tipText*/ null,
           context,
+          () => control.click(this.wave),
           (button) => {
-            this.actions.forEach((b) => {
-              b.selected = false;
-            });
-            button.selected = true;
+            button.enabled = control.enable(this.wave);
           }
         )
     );
-    this.patterns = this.wave.s.patterns.map((pattern) => {
-      return new Item(
-        context.patternTextures[pattern.name],
-        `<b>${pattern.title}</b> [${pattern.grid.rows}×${pattern.grid.cols}]` +
-          `<br>-${pattern.points} nnats`,
-        context
-      );
-    });
-    this.bonuses = this.wave.s.bonuses.map(
-      (bonus) =>
-        new Item(
-          `img/bonuses/${bonus.name}.png`,
-          `<b>${bonus.title}</b><br>${bonus.description}`,
-          context
-        )
+    this.actions = this.wave.s.actions.map((action) =>
+      itemButton(action, context, (button) => {
+        this.actions.forEach((b) => {
+          b.selected = false;
+        });
+        button.selected = true;
+      })
     );
+    const patterns = this.wave.s.patterns.map((p) => itemButton(p, context));
+    const bonuses = this.wave.s.bonuses.map((b) => itemButton(b, context));
 
     this.framePips = new Pips(this.wave.s.maxFrames, context.scene);
     this.rerollPips = new Pips(this.wave.s.maxRolls, context.scene);
+
+    this.panelView = new DynamicRowsView(
+      [
+        {
+          components: [this.framePips, this.rerollPips],
+          height: 0.3,
+          padBelow: false,
+        },
+        { components: controls },
+        { components: this.actions },
+        { components: patterns },
+        { components: bonuses },
+      ],
+      4,
+      context.scene
+    );
   }
 
   selectedAction(): number | null {
@@ -858,107 +922,83 @@ class PanelView {
   }
 
   update(bounds: Box): void {
-    const cols = 4;
-    const PipHeightRatio = 0.3;
-    const rows =
-      PipHeightRatio + // Pips: half-height
-      Math.ceil(this.controls.length / cols) +
-      Math.ceil(this.wave.s.actions.length / cols) +
-      Math.ceil(this.patterns.length / cols) +
-      Math.ceil(this.bonuses.length / cols);
+    this.framePips.filled = this.wave.framesRemaining;
+    this.rerollPips.filled = this.wave.rollsRemaining;
 
-    // Layout
-    const cx = (bounds.left + bounds.right) / 2;
-    const cy = (bounds.bottom + bounds.top) / 2;
-    const w = bounds.right - bounds.left;
-    const h = bounds.top - bounds.bottom;
-    const inset = 0.02 * Math.min(w, h);
-    const sectionPad = 2 * inset;
-    const buttonSize = Math.min(
-      (w - 2 * inset) / cols,
-      (h - 2 * inset - 2 * sectionPad) / rows
-    );
-
-    // Background
-    this.background.position.set(cx, cy, this.background.position.z);
-    this.background.scale.set(w, h, 1);
-
-    // Pips
-    const x0 = bounds.left + inset + buttonSize / 2;
-    let y = bounds.top - inset - (PipHeightRatio * buttonSize) / 2;
-    this.framePips.update(
-      x0,
-      y,
-      buttonSize,
-      PipHeightRatio * buttonSize,
-      this.wave.framesRemaining
-    );
-    this.rerollPips.update(
-      x0 + (1 % cols) * buttonSize,
-      y - Math.floor(1 / cols) * buttonSize,
-      buttonSize,
-      PipHeightRatio * buttonSize,
-      this.wave.rollsRemaining
-    );
-    y -= (PipHeightRatio * buttonSize) / 2 + buttonSize / 2;
-    // Controls
-    for (let i = 0; i < this.controls.length; i++) {
-      this.controls[i].update(
-        x0 + (i % cols) * buttonSize,
-        y - Math.floor(i / cols) * buttonSize,
-        buttonSize,
-        buttonSize
-      );
-    }
-    y -= sectionPad + buttonSize * Math.ceil(this.controls.length / cols);
-    // Actions
-    for (let i = 0; i < this.actions.length; i++) {
-      const button = this.actions[i];
+    // Disable unavailable actions and ensure one is selected
+    for (const [i, button] of this.actions.entries()) {
       button.enabled = this.wave.hasAction(i);
-      button.update(
-        x0 + (i % cols) * buttonSize,
-        y - Math.floor(i / cols) * buttonSize,
-        buttonSize,
-        buttonSize
-      );
       button.selected &&= button.enabled;
     }
-    // If no action is selected, select the first enabled one
-    if (this.actions.reduce((acc, b) => acc || b.selected, false) === false) {
-      for (const b of this.actions) {
-        if (b.enabled) {
-          b.selected = true;
+    if (!this.actions.reduce((acc, b) => acc || b.selected, false)) {
+      for (const button of this.actions) {
+        if (button.enabled) {
+          button.selected = true;
           break;
         }
       }
     }
-    y -= sectionPad + buttonSize * Math.ceil(this.wave.s.actions.length / cols);
-    // Patterns
-    for (let i = 0; i < this.patterns.length; i++) {
-      this.patterns[i].update(
-        x0 + (i % cols) * buttonSize,
-        y - Math.floor(i / cols) * buttonSize,
-        buttonSize,
-        buttonSize
-      );
-    }
-    y -= sectionPad + buttonSize * Math.ceil(this.patterns.length / cols);
-    // Bonuses
-    for (let i = 0; i < this.bonuses.length; i++) {
-      this.bonuses[i].update(
-        x0 + (i % cols) * buttonSize,
-        y - Math.floor(i / cols) * buttonSize,
-        buttonSize,
-        buttonSize
-      );
-    }
+
+    this.panelView.update(bounds);
   }
 }
 
-// Core rendering
+class SelectInventoryView {
+  private readonly items: DynamicRowsView;
+
+  constructor(select: R.Select, context: ViewContext) {
+    const itemRows = ["action", "pattern", "bonus"]
+      .map((kind) =>
+        select.items
+          .filter((item) => item.kind === kind)
+          .map((item) => itemButton(item, context))
+      )
+      .filter((row) => row.length > 0)
+      .map((components) => ({ components: components }));
+
+    this.items = new DynamicRowsView(itemRows, 4, context.scene);
+  }
+
+  update(bounds: Box): void {
+    this.items.update(bounds);
+  }
+}
+
+class SelectOffersView {
+  readonly items: Button[] = [];
+
+  constructor(readonly select: R.Select, context: ViewContext) {
+    for (const [index, item] of select.offers.entries()) {
+      this.items.push(
+        itemButton(item, context, () => {
+          select.selected = index;
+        })
+      );
+    }
+  }
+
+  update(bounds: Box): void {
+    const OfferSizeRatio = 0.8;
+
+    const width = (bounds.right - bounds.left) / this.items.length;
+    const size = width * OfferSizeRatio;
+    this.items.forEach((button, index) => {
+      button.update(
+        bounds.left + width * (index + 0.5),
+        (bounds.top + bounds.bottom) / 2,
+        size,
+        size
+      );
+    });
+  }
+}
+
+// Scenes
 
 interface Scene {
   readonly context: ViewContext;
+  phase(): W.Wave | R.Select | R.RunOutcome;
+  finished(): boolean;
   update(): void;
   dispose(): void;
 }
@@ -968,7 +1008,7 @@ class WaveScene implements Scene {
   private readonly progressView: ProgressView;
   private readonly panelView: PanelView;
 
-  constructor(wave: W.Wave, readonly context: ViewContext) {
+  constructor(readonly wave: W.Wave, readonly context: ViewContext) {
     context.scene.background = backgroundColor();
     this.progressView = new ProgressView(wave, context);
     this.panelView = new PanelView(wave, context);
@@ -980,8 +1020,16 @@ class WaveScene implements Scene {
     );
   }
 
+  phase(): W.Wave {
+    return this.wave;
+  }
+
+  finished(): boolean {
+    return this.wave.status !== "playing";
+  }
+
   update(): void {
-    const layout = this.topLevelLayout();
+    const layout = WaveScene.topLevelLayout(this.context);
     this.gridView.update(layout.grid);
     this.progressView.update(layout.progress);
     this.panelView.update(layout.panel);
@@ -991,9 +1039,13 @@ class WaveScene implements Scene {
     // TODO
   }
 
-  private topLevelLayout(): { grid: Box; progress: Box; panel: Box } {
-    const w = this.context.camera.right - this.context.camera.left;
-    const h = this.context.camera.top - this.context.camera.bottom;
+  static topLevelLayout(context: ViewContext): {
+    grid: Box;
+    progress: Box;
+    panel: Box;
+  } {
+    const w = context.camera.right - context.camera.left;
+    const h = context.camera.top - context.camera.bottom;
     const pad = 0.02 * w;
     const panelW = 0.25 * w;
     const progressW = Math.min(0.03 * w, 0.03 * (h - 2 * pad));
@@ -1022,6 +1074,69 @@ class WaveScene implements Scene {
   }
 }
 
+class SelectScene implements Scene {
+  private readonly inventory: SelectInventoryView;
+  private readonly offers: SelectOffersView;
+
+  constructor(readonly select: R.Select, readonly context: ViewContext) {
+    context.scene.background = backgroundColor();
+    this.inventory = new SelectInventoryView(select, context);
+    this.offers = new SelectOffersView(select, context);
+  }
+
+  phase(): R.Select {
+    return this.select;
+  }
+
+  finished(): boolean {
+    return this.select.selected !== null;
+  }
+
+  update(): void {
+    const layout = WaveScene.topLevelLayout(this.context);
+    this.inventory.update(layout.panel);
+    this.offers.update(layout.grid);
+  }
+
+  dispose(): void {
+    // TODO
+  }
+}
+
+class RunOutcomeScene implements Scene {
+  readonly element: HTMLElement;
+
+  constructor(readonly outcome: R.RunOutcome, readonly context: ViewContext) {
+    context.scene.background = backgroundColor();
+    this.element = document.createElement("div");
+    this.element.innerText = outcome.result === "win" ? "Victory!" : "Defeat";
+    this.element.style.position = "absolute";
+    this.element.style.left = "50%";
+    this.element.style.top = "50%";
+    this.element.style.transform = "translate(-50%, -50%)";
+    this.element.style.color = "white";
+    this.element.style.fontSize = "72px";
+    this.element.style.userSelect = "none";
+    document.body.appendChild(this.element);
+  }
+
+  phase(): R.RunOutcome {
+    return this.outcome;
+  }
+
+  finished(): boolean {
+    return false;
+  }
+
+  update(): void {}
+
+  dispose(): void {
+    document.body.removeChild(this.element);
+  }
+}
+
+// Top-level renderer
+
 class Renderer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly camera: THREE.OrthographicCamera;
@@ -1031,9 +1146,9 @@ class Renderer {
 
   // State
   private lastTime: number | null = null;
-  private scene: Scene;
+  private scene: Scene | null = null;
 
-  constructor(wave: W.Wave, canvas: HTMLCanvasElement) {
+  constructor(private readonly run: R.Run, canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.camera = new THREE.OrthographicCamera();
     this.camera.near = 0.1;
@@ -1043,21 +1158,39 @@ class Renderer {
     this.tooltip = new Tooltip(this.mouse, canvas);
     this.patternTextures = renderPatternTextures(
       Object.values(Items).filter(
-        (item): item is W.Pattern => W.kind(item) === "pattern"
+        (item): item is W.Pattern => item.kind === "pattern"
       )
     );
 
-    this.scene = new WaveScene(wave, {
+    this.onResize();
+    window.addEventListener("resize", this.onResize.bind(this));
+    requestAnimationFrame(this.onAnimationFrame.bind(this));
+
+    this.nextScene();
+  }
+
+  private nextScene() {
+    if (this.scene) {
+      this.scene.dispose();
+      this.tooltip.hide();
+    }
+    const nextPhase = this.run.next(this.scene?.phase());
+    const context = {
       mouse: this.mouse,
       tooltip: this.tooltip,
       patternTextures: this.patternTextures,
       scene: new THREE.Scene(),
       camera: this.camera,
-    });
-
-    this.onResize();
-    window.addEventListener("resize", this.onResize.bind(this));
-    requestAnimationFrame(this.onAnimationFrame.bind(this));
+    };
+    if (nextPhase.phase === "wave") {
+      this.scene = new WaveScene(nextPhase, context);
+    } else if (nextPhase.phase === "select") {
+      this.scene = new SelectScene(nextPhase, context);
+    } else if (nextPhase.phase === "outcome") {
+      this.scene = new RunOutcomeScene(nextPhase, context);
+    } else {
+      throw new Error(`Unknown phase: ${nextPhase}`);
+    }
   }
 
   private onResize() {
@@ -1077,16 +1210,21 @@ class Renderer {
     if (this.lastTime === null) {
       this.lastTime = time;
     }
-    // const dt = (time - this.lastTime) / 1000; // for animation
+    // const dt = (time - this.lastTime) / 1000; // for animations
     this.lastTime = time;
     this.mouse.update();
 
     // Update scene
-    this.scene.update();
+    if (this.scene?.finished()) {
+      this.nextScene();
+    }
+    this.scene?.update();
 
     // Render
     this.mouse.postUpdate();
-    this.renderer.render(this.scene.context.scene, this.camera);
+    if (this.scene) {
+      this.renderer.render(this.scene.context.scene, this.camera);
+    }
     requestAnimationFrame(this.onAnimationFrame.bind(this));
     LOG.tick();
   }

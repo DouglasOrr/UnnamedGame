@@ -26,6 +26,7 @@ test("Grid getComponents", () => {
 test("Pattern find", () => {
   const grid = G.Grid.parse("xxx-/-x-x/x-x-");
   const pattern = {
+    kind: "pattern" as const,
     grid: G.Grid.parse("x-/-x"),
     name: "test",
     title: "Test",

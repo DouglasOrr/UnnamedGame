@@ -3,6 +3,7 @@ body {
   height: 100%;
   margin: 0;
   background-color: #222222;
+  font-family: sans-serif;
 }
 #canvas-main {
   position: fixed;
