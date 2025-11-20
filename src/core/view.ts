@@ -171,12 +171,13 @@ interface ViewContext {
 const TextureCache: { [id: string]: THREE.Texture } = {};
 
 function renderPatternTexture(pattern: W.Pattern): THREE.Texture {
-  const CellSize = 32;
+  const Size = 256;
   const FillRatio = 0.8;
 
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height =
-    CellSize * Math.max(pattern.grid.cols, pattern.grid.rows);
+  canvas.width = canvas.height = Size;
+  const cellSize = Size / Math.max(pattern.grid.cols, pattern.grid.rows);
+  const fillSize = FillRatio * cellSize;
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = "#ffffff";
   for (let i = 0; i < pattern.grid.elements; i++) {
@@ -184,12 +185,9 @@ function renderPatternTexture(pattern: W.Pattern): THREE.Texture {
     const col = i % pattern.grid.cols;
     const cell = pattern.grid.get(row, col);
     if (cell !== W.Cell.O) {
-      ctx.fillRect(
-        canvas.width * 0.5 + CellSize * (col - pattern.grid.cols / 2),
-        canvas.height * 0.5 + CellSize * (row - pattern.grid.rows / 2),
-        FillRatio * CellSize,
-        FillRatio * CellSize
-      );
+      const cx = Size * 0.5 + cellSize * (col + 0.5 - pattern.grid.cols / 2);
+      const cy = Size * 0.5 + cellSize * (row + 0.5 - pattern.grid.rows / 2);
+      ctx.fillRect(cx - fillSize / 2, cy - fillSize / 2, fillSize, fillSize);
     }
   }
 
@@ -378,9 +376,9 @@ class Button implements Component {
     if (this.onUpdate) {
       this.onUpdate(this);
     }
-    const InnerSizeRatio = 0.6;
     const HoverSizeRatio = 1.05;
     const OutlinePad = 0.04;
+    const InnerSizeRatio = 0.7;
     const Colors = {
       hovered: 0xffffff,
       enabled: 0xaaaaaa,
