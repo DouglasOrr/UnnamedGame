@@ -97,6 +97,38 @@ action(
 );
 
 action(
+  "shift",
+  ["Shift", "shift the grid in the chosen direction, with wrap-around"],
+  "rare",
+  (
+    grid: Grid,
+    arg: { index: number; direction: "up" | "down" | "left" | "right" }
+  ) => {
+    const cellsOut = grid.cells.slice();
+    let i0: number, delta: number, stride: number, count: number;
+    if (arg.direction === "up" || arg.direction === "down") {
+      i0 = arg.index;
+      delta = arg.direction === "up" ? 1 : -1;
+      stride = grid.cols;
+      count = grid.rows;
+    } else {
+      // left || right
+      i0 = grid.cols * arg.index;
+      delta = arg.direction === "left" ? 1 : -1;
+      stride = 1;
+      count = grid.cols;
+    }
+    for (let n = 0; n < count; n++) {
+      const i = i0 + stride * n;
+      const j = i0 + stride * ((n + delta + count) % count);
+      cellsOut[i] = grid.cells[j];
+    }
+    return grid.replace(cellsOut);
+  },
+  { limit: Infinity }
+);
+
+action(
   "flip_y",
   ["Flip", "flip vertically"],
   "rare",

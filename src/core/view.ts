@@ -605,26 +605,64 @@ class GridView {
       const actionIdx = this.panel.selectedAction();
       if (actionIdx !== null) {
         const actionName = this.wave.s.actions[actionIdx].name;
-        this.hoverOutline.line.visible = true;
-        this.hoverOutline.update(
-          cellsLeft + (mcol + 0.5) * cellSize,
-          cellsTop - (mrow + 0.5) * cellSize,
-          outlineSize,
-          outlineSize
-        );
-        if (this.context.mouse.click) {
-          if (actionName == "swap") {
-            const cellIdx = mrow * grid.cols + mcol;
-            if (this.swapSrc === null) {
-              this.swapSrc = cellIdx;
-            } else if (this.swapSrc === cellIdx) {
-              this.swapSrc = null; // cancel
-            } else {
-              this.wave.execute(actionIdx, { i: this.swapSrc, j: cellIdx });
-              this.swapSrc = null;
+        if (actionName == "swap" || actionName == "wildcard") {
+          this.hoverOutline.line.visible = true;
+          this.hoverOutline.update(
+            cellsLeft + (mcol + 0.5) * cellSize,
+            cellsTop - (mrow + 0.5) * cellSize,
+            outlineSize,
+            outlineSize
+          );
+          if (this.context.mouse.click) {
+            if (actionName == "swap") {
+              const cellIdx = mrow * grid.cols + mcol;
+              if (this.swapSrc === null) {
+                this.swapSrc = cellIdx;
+              } else if (this.swapSrc === cellIdx) {
+                this.swapSrc = null; // cancel
+              } else {
+                this.wave.execute(actionIdx, { i: this.swapSrc, j: cellIdx });
+                this.swapSrc = null;
+              }
+            } else if (actionName == "wildcard") {
+              this.wave.execute(actionIdx, { i: mrow * grid.cols + mcol });
             }
-          } else if (actionName == "wildcard") {
-            this.wave.execute(actionIdx, { i: mrow * grid.cols + mcol });
+          }
+        }
+      }
+    } else if (
+      -1 <= mrow &&
+      mrow < grid.rows + 1 &&
+      -1 <= mcol &&
+      mcol < grid.cols + 1
+    ) {
+      const actionIdx = this.panel.selectedAction();
+      const isLeft = mcol < 0;
+      const isRight = mcol >= grid.cols;
+      const isTop = mrow < 0;
+      const isBottom = mrow >= grid.rows;
+      // Exclude corners
+      if (actionIdx !== null && +isLeft + +isRight + +isTop + +isBottom === 1) {
+        const actionName = this.wave.s.actions[actionIdx].name;
+        if (actionName == "shift") {
+          this.hoverOutline.line.visible = true;
+          this.hoverOutline.update(
+            cellsLeft + (mcol + 0.5) * cellSize,
+            cellsTop - (mrow + 0.5) * cellSize,
+            outlineSize,
+            outlineSize
+          );
+          if (this.context.mouse.click) {
+            this.wave.execute(actionIdx, {
+              direction: isLeft
+                ? "right"
+                : isRight
+                ? "left"
+                : isTop
+                ? "down"
+                : "up",
+              index: isLeft || isRight ? mrow : mcol,
+            });
           }
         }
       }
@@ -968,7 +1006,12 @@ class PanelView {
             this.wave.execute(index);
           }
         },
-        { selectable: action.name === "swap" || action.name === "wildcard" }
+        {
+          selectable:
+            action.name === "swap" ||
+            action.name === "wildcard" ||
+            action.name === "shift",
+        }
       )
     );
     const patterns = this.wave.s.patterns.map((p) => itemButton(p, context));

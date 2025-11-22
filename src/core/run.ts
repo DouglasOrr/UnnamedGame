@@ -81,36 +81,41 @@ export interface RunSettings {
   offers: number;
 }
 
-export function standardSettings(
-  waves: number,
-  chanceStart: Chance,
-  chanceEnd: Chance,
-  startingItems: W.Item[] = [Items["swap"], Items["swap"]]
-): RunSettings {
-  const schedule: Phase[] = [
-    {
-      type: "select",
-      only: "pattern",
-      chance: chanceStart,
-    },
-  ];
-  for (let w = 0; w < waves; w++) {
-    const c0 = chanceStart;
-    const c1 = chanceEnd;
-    const r = w / (waves - 1);
+export function standardSettings(s: {
+  waves: number;
+  start: Chance;
+  end: Chance;
+  items: string[];
+  skipToFirstWave?: boolean;
+}): RunSettings {
+  const skipToFirstWave = s.skipToFirstWave ?? false;
+  const schedule: Phase[] = [];
+  if (!skipToFirstWave) {
     schedule.push({
       type: "select",
-      chance: {
-        common: c0.common + r * (c1.common - c0.common),
-        uncommon: c0.uncommon + r * (c1.uncommon - c0.uncommon),
-        rare: c0.rare + r * (c1.rare - c0.rare),
-      },
+      only: "pattern",
+      chance: s.start,
     });
+  }
+  for (let w = 0; w < s.waves; w++) {
+    const c0 = s.start;
+    const c1 = s.end;
+    const r = w / (s.waves - 1);
+    if (w > 0 || !skipToFirstWave) {
+      schedule.push({
+        type: "select",
+        chance: {
+          common: c0.common + r * (c1.common - c0.common),
+          uncommon: c0.uncommon + r * (c1.uncommon - c0.uncommon),
+          rare: c0.rare + r * (c1.rare - c0.rare),
+        },
+      });
+    }
     schedule.push({ type: "wave", targetScore: (w + 1) * 100 });
   }
 
   return {
-    items: startingItems,
+    items: s.items.map((name) => Items[name]),
     schedule: schedule,
     maxFrames: 3,
     maxRolls: 1,
