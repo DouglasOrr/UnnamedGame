@@ -97,6 +97,23 @@ action(
 );
 
 action(
+  "flip_y",
+  ["Flip", "flip vertically"],
+  "rare",
+  (grid: Grid) => {
+    const cellsOut = grid.cells.slice();
+    for (let r = 0; r < grid.rows; r++) {
+      for (let c = 0; c < grid.cols; c++) {
+        cellsOut[(grid.rows - 1 - r) * grid.cols + c] =
+          grid.cells[r * grid.cols + c];
+      }
+    }
+    return grid.replace(cellsOut);
+  },
+  { limit: 1 }
+);
+
+action(
   "gravity",
   ["Gravity", "everything falls to the floor"],
   "rare",
@@ -116,7 +133,8 @@ action(
       }
     }
     return grid.replace(cellsOut);
-  }
+  },
+  { limit: 1 }
 );
 
 // Patterns
