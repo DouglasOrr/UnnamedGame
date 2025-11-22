@@ -171,13 +171,13 @@ action(
 
 // Patterns
 
-pattern("Square S", "xx/xx", 1, "common");
+pattern("Square S", "xx/xx", 3, "common");
 pattern("Square M", "xxx/xxx/xxx", 30, "common");
 pattern("Square L", "xxxx/xxxx/xxxx/xxxx", 250, "rare");
 pattern("Square XL", "xxxxx/xxxxx/xxxxx/xxxxx/xxxxx", 1000, "rare");
 
-pattern("Line", "xxxx", 2, "uncommon");
-pattern("Column", "x/x/x/x", 2, "uncommon");
+pattern("Line", "xxxx", 3, "uncommon");
+pattern("Column", "x/x/x/x", 3, "uncommon");
 pattern("Line L", "xxxxxx", 10, "uncommon");
 pattern("Column L", "x/x/x/x/x/x", 10, "uncommon");
 
