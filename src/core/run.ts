@@ -34,8 +34,7 @@ export class Select {
       const candidates = Object.values(Items).filter(
         (item) =>
           (only === undefined || item.kind === only) &&
-          items.reduce((c, i) => c + +(i.name === item.name), 0) <
-            (item.limit ?? 1) &&
+          items.reduce((c, i) => c + +(i.name === item.name), 0) < item.limit &&
           !offers.includes(item)
       );
       if (candidates.length === 0) {

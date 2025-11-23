@@ -14,39 +14,22 @@ function register(item: Item): void {
 let nextPriority = 0;
 
 function action(
-  name: string,
+  nameFreqLimit: [string, Frequency, number],
   titleDescription: [string, string],
-  freq: Frequency,
-  execute: (grid: Grid, arg: any) => Grid,
-  args: { limit?: number } = {}
+  execute: (grid: Grid, arg: any) => Grid
 ): void {
   register({
     kind: "action",
-    name,
+    name: nameFreqLimit[0],
+    // View
     title: titleDescription[0],
     description: titleDescription[1],
-    freq,
-    limit: args.limit,
+    icon: `action/${nameFreqLimit[0]}.png`,
+    // Behaviour
+    freq: nameFreqLimit[1],
+    limit: nameFreqLimit[2],
     priority: nextPriority++,
     execute,
-  });
-}
-
-function bonus(
-  name: string,
-  titleDescription: [string, string],
-  freq: Frequency,
-  args: { onScore: (score: Score) => void; limit?: number }
-): void {
-  register({
-    kind: "bonus",
-    name,
-    title: titleDescription[0],
-    description: titleDescription[1],
-    freq,
-    limit: args.limit ?? Infinity,
-    priority: nextPriority++,
-    onScore: args.onScore,
   });
 }
 
@@ -70,36 +53,51 @@ function pattern(
   });
 }
 
+function bonus(
+  nameFreqLimit: [string, Frequency, number],
+  titleDescription: [string, string],
+  args: { onScore: (score: Score) => void; icon?: string }
+): void {
+  register({
+    kind: "bonus",
+    name: nameFreqLimit[0],
+    // View
+    title: titleDescription[0],
+    description: titleDescription[1],
+    icon: args.icon ?? `bonus/${nameFreqLimit[0]}.png`,
+    // Behaviour
+    freq: nameFreqLimit[1],
+    limit: nameFreqLimit[2],
+    priority: nextPriority++,
+    onScore: args.onScore,
+  });
+}
+
 // Actions
 
 action(
-  "swap",
+  ["swap", "uncommon", Infinity],
   ["Swap", "select 2 cells to swap"],
-  "uncommon",
   (grid: Grid, arg: { i: number; j: number }) => {
     const cellsOut = grid.cells.slice();
     [cellsOut[arg.i], cellsOut[arg.j]] = [cellsOut[arg.j], cellsOut[arg.i]];
     return grid.replace(cellsOut);
-  },
-  { limit: Infinity }
+  }
 );
 
 action(
-  "wildcard",
+  ["wildcard", "uncommon", Infinity],
   ["Wildcard", "add a wildcard cell, which can match O or X"],
-  "uncommon",
   (grid: Grid, arg: { i: number }) => {
     const cellsOut = grid.cells.slice();
     cellsOut[arg.i] = Cell.W;
     return grid.replace(cellsOut);
-  },
-  { limit: Infinity }
+  }
 );
 
 action(
-  "shift",
+  ["shift", "rare", Infinity],
   ["Shift", "shift the grid in the chosen direction, with wrap-around"],
-  "rare",
   (
     grid: Grid,
     arg: { index: number; direction: "up" | "down" | "left" | "right" }
@@ -124,31 +122,23 @@ action(
       cellsOut[i] = grid.cells[j];
     }
     return grid.replace(cellsOut);
-  },
-  { limit: Infinity }
+  }
 );
 
-action(
-  "flip_y",
-  ["Flip", "flip vertically"],
-  "rare",
-  (grid: Grid) => {
-    const cellsOut = grid.cells.slice();
-    for (let r = 0; r < grid.rows; r++) {
-      for (let c = 0; c < grid.cols; c++) {
-        cellsOut[(grid.rows - 1 - r) * grid.cols + c] =
-          grid.cells[r * grid.cols + c];
-      }
+action(["flip_y", "rare", 1], ["Flip", "flip vertically"], (grid: Grid) => {
+  const cellsOut = grid.cells.slice();
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      cellsOut[(grid.rows - 1 - r) * grid.cols + c] =
+        grid.cells[r * grid.cols + c];
     }
-    return grid.replace(cellsOut);
-  },
-  { limit: 1 }
-);
+  }
+  return grid.replace(cellsOut);
+});
 
 action(
-  "gravity",
+  ["gravity", "rare", 1],
   ["Gravity", "everything falls to the floor"],
-  "rare",
   (grid: Grid) => {
     const cellsOut = grid.cells.slice();
     for (let col = 0; col < grid.cols; col++) {
@@ -165,8 +155,7 @@ action(
       }
     }
     return grid.replace(cellsOut);
-  },
-  { limit: 1 }
+  }
 );
 
 // Patterns
@@ -206,9 +195,37 @@ pattern("L", "x-/x-/xx", 12, "common");
 
 // Bonuses
 
-bonus("flat_points", ["-20", "subtract 20 nnats"], "common", {
-  onScore(score: Score): void {
-    score.flatPoints += 20;
-  },
-  limit: Infinity,
-});
+function flat_points(points: number, freq: Frequency): void {
+  bonus(
+    [`flat_points_${points}`, freq, Infinity],
+    [`-${points}`, `subtract ${points} nnats`],
+    {
+      onScore(score: Score): void {
+        score.flatPoints += points;
+      },
+      icon: `bonus/flat_points.png`,
+    }
+  );
+}
+flat_points(20, "common");
+flat_points(40, "uncommon");
+flat_points(100, "rare");
+
+function flat_multiplier(multiplier: number, freq: Frequency): void {
+  bonus(
+    [`flat_multiplier_${multiplier}`, freq, 1],
+    [
+      `-${multiplier * 100}%`,
+      `decrease nnats by an extra ${multiplier * 100}%`,
+    ],
+    {
+      onScore(score: Score): void {
+        score.flatMultiplier += multiplier;
+      },
+      icon: `bonus/flat_multiplier.png`,
+    }
+  );
+}
+flat_multiplier(0.05, "common");
+flat_multiplier(0.1, "uncommon");
+flat_multiplier(0.25, "rare");

@@ -268,14 +268,15 @@ function renderPatternTexture(pattern: W.Pattern): THREE.Texture {
 }
 
 function loadTexture(p: string | W.Item): THREE.Texture {
-  const key = typeof p === "string" ? p : `img/${p.kind}/${p.name}.png`;
+  const key = typeof p === "string" ? p : `${p.kind}/${p.name}`;
   if (!TextureCache[key]) {
     if (typeof p === "string" || p.kind !== "pattern") {
+      const path = typeof p === "string" ? p : `img/${p.icon}`;
       TextureCache[key] = new THREE.TextureLoader().load(
-        key,
+        path,
         undefined,
         undefined,
-        (err) => console.error(`Error loading texture ${key}`, err)
+        (err) => console.error(`Error loading texture ${path}`, err)
       );
     } else {
       TextureCache[key] = renderPatternTexture(p);
@@ -886,12 +887,12 @@ class ProgressView {
           const explanation = component.scoreExplanation
             .map(
               (e) =>
-                `-${e.points} ×${e.count}&nbsp;&nbsp;<em>${
+                `−${e.points} ×${e.count}&nbsp;&nbsp;<em>${
                   e.pattern?.title ?? ""
                 }</em>`
             )
             .join("<br>&nbsp;&nbsp;&nbsp;&nbsp;");
-          return `- ${component.score} nnats<br>&nbsp;= ${explanation}`;
+          return `− ${component.score} nnats<br>&nbsp;= ${explanation}`;
         },
         [
           bounds.right,
@@ -900,7 +901,23 @@ class ProgressView {
       );
     } else {
       this.context.tooltip.show(this, { cx, cy, w, h }, () => {
-        return `${progressAll} nnats (- ${this.wave.score.total})`;
+        const sep = "<br>&nbsp;&nbsp;&nbsp;";
+        let text = `${progressAll} nnats<br>− ${this.wave.score.total} nnats`;
+        text += `<br>&nbsp;= `;
+        const explanation = this.wave.score.explanation;
+        if (explanation.multiplier !== 1) {
+          text += `${explanation.multiplier}×&nbsp;&nbsp;<em>bonus</em>${sep}`;
+        }
+        for (const e of explanation.components) {
+          text += `−${e}&nbsp;&nbsp;<em>group</em>${sep}`;
+        }
+        if (explanation.addPoints) {
+          text += `−${explanation.addPoints}&nbsp;&nbsp;<em>bonus</em>`;
+        }
+        if (text.endsWith(sep)) {
+          text = text.slice(0, -sep.length);
+        }
+        return text;
       });
     }
   }

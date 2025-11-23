@@ -159,12 +159,13 @@ export interface ItemBase {
   title: string;
   freq: Frequency;
   priority: number;
-  limit?: number; // or 1
+  limit: number;
 }
 
 export interface Action extends ItemBase {
   kind: "action";
   description: string;
+  icon: string;
   execute(grid: Grid, arg: any): Grid;
 }
 
@@ -177,6 +178,7 @@ export interface Pattern extends ItemBase {
 export interface Bonus extends ItemBase {
   kind: "bonus";
   description: string;
+  icon: string;
   onScore?(score: Score): void;
 }
 
@@ -255,6 +257,7 @@ export class ComponentScore {
         });
       }
     }
+    explanation.sort((a, b) => b.count * b.points - a.count * a.points);
     explanation.push({
       pattern: null,
       points: 1,
@@ -266,16 +269,33 @@ export class ComponentScore {
 
 export class Score {
   flatPoints: number = 0;
+  flatMultiplier: number = 0;
   constructor(
     readonly components: ComponentScore[],
     readonly cellToComponent: (number | null)[]
   ) {}
 
   get total(): number {
-    return (
-      this.components.reduce((sum, comp) => sum + comp.score, 0) +
-      this.flatPoints
+    return Math.ceil(
+      (1 + this.flatMultiplier) *
+        (this.components.reduce((sum, comp) => sum + comp.score, 0) +
+          this.flatPoints)
     );
+  }
+
+  get explanation(): {
+    multiplier: number;
+    components: number[];
+    addPoints: number;
+  } {
+    return {
+      multiplier: 1 + this.flatMultiplier,
+      components: this.components
+        .map((c) => c.score)
+        .filter((score) => score > 0)
+        .sort((a, b) => b - a),
+      addPoints: this.flatPoints,
+    };
   }
 
   static create(grid: Grid, patterns: Pattern[]): Score {

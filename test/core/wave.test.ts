@@ -33,6 +33,7 @@ test("Pattern find", () => {
     points: 0,
     freq: "common" as const,
     priority: 0,
+    limit: Infinity,
   };
   const matches = G.findMatches(pattern, grid);
   expect(matches).toEqual([2, 5]);
