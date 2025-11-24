@@ -20,6 +20,7 @@ window.onload = () => {
         "line",
         // Bonuses
         "gmult_pattern",
+        "ppoints_flat_common",
       ],
       skipToFirstWave: true,
     })

@@ -215,17 +215,23 @@ export class ComponentScore {
     pattern: Pattern;
     patternIndex: number;
     position: number;
+    points: number;
   }[] = [];
   constructor(readonly cellIndices: number[]) {}
 
   addMatch(pattern: Pattern, patternIndex: number, position: number): void {
-    this.matches.push({ pattern, patternIndex, position });
+    this.matches.push({
+      pattern,
+      patternIndex,
+      position,
+      points: pattern.points,
+    });
   }
 
   get score(): number {
     let total = 0;
     for (const p of this.matches) {
-      total += p.pattern.points;
+      total += p.points;
     }
     if (this.matches.length >= 1) {
       total += this.cellIndices.length;
@@ -252,7 +258,7 @@ export class ComponentScore {
       } else {
         explanation.push({
           pattern: p.pattern,
-          points: p.pattern.points,
+          points: p.points,
           count: 1,
         });
       }

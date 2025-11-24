@@ -195,11 +195,36 @@ pattern("L", "x-/x-/xx", 12, "common");
 
 // Bonuses
 
+// Bonuses::Pattern
+
+function ppoints_flat(points: number, freq: Frequency): void {
+  bonus(
+    [`ppoints_flat_${freq}`, freq, 1],
+    [
+      `−${points} nnats/pattern`,
+      `subtract an additional ${points} nnats from every pattern`,
+    ],
+    {
+      onScore(score: Score): void {
+        for (const component of score.components) {
+          for (const match of component.matches) {
+            match.points += points;
+          }
+        }
+      },
+      icon: `bonus/ppoints_flat.png`,
+    }
+  );
+}
+ppoints_flat(3, "common");
+ppoints_flat(7, "uncommon");
+ppoints_flat(12, "rare");
+
 // Bonuses::Global
 
 function gpoints_flat(points: number, freq: Frequency): void {
   bonus(
-    [`gpoints_flat_${points}`, freq, Infinity],
+    [`gpoints_flat_${freq}`, freq, Infinity],
     [`−${points}`, `subtract ${points} nnats`],
     {
       onScore(score: Score): void {
@@ -215,7 +240,7 @@ gpoints_flat(100, "rare");
 
 function gmult_flat(multiplier: number, freq: Frequency): void {
   bonus(
-    [`gmult_flat_${multiplier}`, freq, 1],
+    [`gmult_flat_${freq}`, freq, 1],
     [`−${multiplier * 100}%`, `add a global ${multiplier * 100}% multiplier`],
     {
       onScore(score: Score): void {
@@ -263,6 +288,5 @@ bonus(
       score.flatMultiplier +=
         0.03 * score.components.reduce((c, n) => c + n.matches.length, 0);
     },
-    icon: `bonus/gmult_pattern.png`,
   }
 );
