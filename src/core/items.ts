@@ -195,37 +195,62 @@ pattern("L", "x-/x-/xx", 12, "common");
 
 // Bonuses
 
-function flat_points(points: number, freq: Frequency): void {
+// Bonuses::Global
+
+function gpoints_flat(points: number, freq: Frequency): void {
   bonus(
-    [`flat_points_${points}`, freq, Infinity],
+    [`gpoints_flat_${points}`, freq, Infinity],
     [`−${points}`, `subtract ${points} nnats`],
     {
       onScore(score: Score): void {
         score.flatPoints += points;
       },
-      icon: `bonus/flat_points.png`,
+      icon: `bonus/gpoints_flat.png`,
     }
   );
 }
-flat_points(20, "common");
-flat_points(40, "uncommon");
-flat_points(100, "rare");
+gpoints_flat(20, "common");
+gpoints_flat(40, "uncommon");
+gpoints_flat(100, "rare");
 
-function flat_multiplier(multiplier: number, freq: Frequency): void {
+function gmult_flat(multiplier: number, freq: Frequency): void {
   bonus(
-    [`flat_multiplier_${multiplier}`, freq, 1],
-    [
-      `−${multiplier * 100}%`,
-      `decrease nnats by an extra ${multiplier * 100}%`,
-    ],
+    [`gmult_flat_${multiplier}`, freq, 1],
+    [`−${multiplier * 100}%`, `add a global ${multiplier * 100}% multiplier`],
     {
       onScore(score: Score): void {
         score.flatMultiplier += multiplier;
       },
-      icon: `bonus/flat_multiplier.png`,
+      icon: `bonus/gmult_flat.png`,
     }
   );
 }
-flat_multiplier(0.05, "common");
-flat_multiplier(0.1, "uncommon");
-flat_multiplier(0.25, "rare");
+gmult_flat(0.05, "common");
+gmult_flat(0.15, "uncommon");
+gmult_flat(0.25, "rare");
+
+bonus(
+  ["gmult_group_scoring", "uncommon", 1],
+  ["Group Discount", "for each scoring group, add a global 10% multiplier"],
+  {
+    onScore(score: Score): void {
+      score.flatMultiplier +=
+        0.1 * score.components.filter((c) => c.matches.length > 0).length;
+    },
+    icon: `bonus/gmult_group.png`,
+  }
+);
+
+bonus(
+  ["gmult_group_all", "rare", 1],
+  [
+    "Group Discount (+)",
+    "for each and every group, add a global 5% multiplier",
+  ],
+  {
+    onScore(score: Score): void {
+      score.flatMultiplier += 0.05 * score.components.length;
+    },
+    icon: `bonus/gmult_group.png`,
+  }
+);

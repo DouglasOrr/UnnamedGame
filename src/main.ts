@@ -19,8 +19,8 @@ window.onload = () => {
         "square_s",
         "line",
         // Bonuses
-        "flat_multiplier_0.05",
-        "flat_points_20",
+        "gmult_group_scoring",
+        "gmult_group_all",
       ],
       skipToFirstWave: true,
     })
