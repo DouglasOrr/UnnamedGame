@@ -198,7 +198,7 @@ pattern("L", "x-/x-/xx", 12, "common");
 function flat_points(points: number, freq: Frequency): void {
   bonus(
     [`flat_points_${points}`, freq, Infinity],
-    [`-${points}`, `subtract ${points} nnats`],
+    [`−${points}`, `subtract ${points} nnats`],
     {
       onScore(score: Score): void {
         score.flatPoints += points;
@@ -215,7 +215,7 @@ function flat_multiplier(multiplier: number, freq: Frequency): void {
   bonus(
     [`flat_multiplier_${multiplier}`, freq, 1],
     [
-      `-${multiplier * 100}%`,
+      `−${multiplier * 100}%`,
       `decrease nnats by an extra ${multiplier * 100}%`,
     ],
     {
