@@ -39,6 +39,7 @@ test("Pattern find", () => {
     title: "Test",
     points: 0,
     freq: "common" as const,
+    freqMultiplier: 1,
     priority: 0,
     limit: Infinity,
   };
