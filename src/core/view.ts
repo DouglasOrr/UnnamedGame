@@ -217,6 +217,24 @@ interface ViewContext {
   camera: THREE.OrthographicCamera;
 }
 
+function disposeScene(scene: THREE.Scene) {
+  scene.traverse((obj) => {
+    if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
+      if (obj instanceof THREE.InstancedMesh) {
+        obj.dispose();
+      }
+      obj.geometry.dispose();
+      const materials = Array.isArray(obj.material)
+        ? obj.material
+        : [obj.material];
+      for (const mat of materials) {
+        // Dispose material but not textures (they're cached in TextureCache)
+        mat.dispose();
+      }
+    }
+  });
+}
+
 // Textures
 
 const TextureCache: { [id: string]: THREE.Texture } = {};
@@ -1296,7 +1314,7 @@ class WaveScene implements Scene {
   }
 
   dispose(): void {
-    // TODO
+    disposeScene(this.context.scene);
   }
 }
 
@@ -1332,7 +1350,7 @@ class SelectScene implements Scene {
   }
 
   dispose(): void {
-    // TODO
+    disposeScene(this.context.scene);
   }
 }
 
@@ -1365,6 +1383,7 @@ class RunOutcomeScene implements Scene {
 
   dispose(): void {
     document.body.removeChild(this.element);
+    disposeScene(this.context.scene);
   }
 }
 
