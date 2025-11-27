@@ -3,7 +3,12 @@ import * as V from "./core/view";
 import * as S from "./core/sound";
 
 window.onload = () => {
-  new S.Player().play();
+  const player = new S.Player();
+  function onClick() {
+    player.play();
+    document.removeEventListener("click", onClick);
+  }
+  document.addEventListener("click", onClick);
   const run = new R.Run(
     R.standardSettings({
       waves: 20,

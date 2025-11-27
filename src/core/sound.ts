@@ -3,6 +3,10 @@ const TRACKS = [
   "audio_hero_Boutique_SIPML_C-0105.mp3",
   "music_dave_miles_jazzing_around.mp3",
   "music_zapsplat_on_the_job_140.mp3",
+  "music_zapsplat_win_city.mp3",
+  "music_zapsplat_as_time_passes_124.mp3",
+  "audio_hero_Single-Malt_SIPML_C-1105.mp3",
+  "audio_hero_Urban-Delivery_SIPML_C-0810.mp3",
 ];
 
 export class Player {
