@@ -1,7 +1,7 @@
 import { Frequency, Grid, Item, Score, Cell } from "./wave";
 import * as W from "./wave";
 
-export const Items = {} as { [name: string]: Item };
+export const Items = {} as Record<string, W.Item>;
 
 // Helpers
 

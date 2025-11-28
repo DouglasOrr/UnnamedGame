@@ -1,3 +1,5 @@
+import { AchievementTracker } from "./game";
+
 /**
  * Single cell type: empty, filled or wildcard.
  */
@@ -423,6 +425,13 @@ export class Wave {
       });
   }
 
+  get usedActions(): Action[] {
+    return this.state
+      .map((st) => st.action)
+      .filter((a): a is number => a !== null)
+      .map((idx) => this.s.actions[idx]);
+  }
+
   get status(): "playing" | "win" | "lose" {
     if (
       this.frame >= this.s.maxFrames ||
@@ -498,6 +507,7 @@ export class Wave {
       this.roll = -1;
       this.reroll();
     }
+    AchievementTracker.onGridScored(this, this.score);
   }
 
   reroll(): void {

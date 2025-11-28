@@ -1,3 +1,4 @@
+import { AchievementTracker } from "./game";
 import { Items } from "./items";
 import * as W from "./wave";
 
@@ -135,6 +136,7 @@ export class Run {
   constructor(readonly s: RunSettings) {
     this.items = s.items.slice();
     this.items.sort((a, b) => a.priority - b.priority);
+    AchievementTracker.onRunStart();
   }
 
   totalWaves(): number {
@@ -165,22 +167,29 @@ export class Run {
       }
       if (lastPhase.phase == "select") {
         if (lastPhase.selected !== null) {
-          this.items.push(lastPhase.offers[lastPhase.selected]);
+          const selectedItem = lastPhase.offers[lastPhase.selected];
+          this.items.push(selectedItem);
           this.items.sort((a, b) => a.priority - b.priority);
+          AchievementTracker.onItemCollected(selectedItem);
         }
       } else if (lastPhase.phase == "wave") {
+        AchievementTracker.onWaveComplete(lastPhase);
         if (lastPhase.status === "playing") {
           console.error("Wave is still playing -- treating as a win");
         }
         if (lastPhase.status === "lose") {
-          return new RunOutcome("lose");
+          const outcome = new RunOutcome("lose");
+          AchievementTracker.onRunEnd(outcome);
+          return outcome;
         }
       }
     }
     // Advance to next phase
     this.phaseIndex++;
     if (this.phaseIndex >= this.s.schedule.length) {
-      return new RunOutcome("win");
+      const outcome = new RunOutcome("win");
+      AchievementTracker.onRunEnd(outcome);
+      return outcome;
     }
     // Return next phase
     const phase = this.s.schedule[this.phaseIndex];

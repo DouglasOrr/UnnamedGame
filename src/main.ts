@@ -1,9 +1,11 @@
 import * as G from "./core/game";
+import { Items } from "./core/items";
 import * as R from "./core/run";
 import * as S from "./core/sound";
 import * as V from "./core/view";
 
 window.onload = () => {
+  G.registerItems(Items);
   S.start();
 
   const settings: G.GameSettings = {

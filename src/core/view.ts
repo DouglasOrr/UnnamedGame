@@ -1599,6 +1599,10 @@ class Renderer {
     requestAnimationFrame(this.onAnimationFrame.bind(this));
 
     this.nextScene();
+
+    G.AchievementTracker.onUnlock = (achievement) => {
+      console.log(`Achievement unlocked: ${JSON.stringify(achievement)}`); // TODO
+    };
   }
 
   private nextScene() {
