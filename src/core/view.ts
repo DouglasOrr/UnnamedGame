@@ -1257,12 +1257,14 @@ function topLevelLayout(context: ViewContext): {
   const bodyH = h - 3 * pad - menuH;
   const progressW = Math.min(0.03 * w, 0.03 * bodyH);
   const gridSize = Math.min(bodyH, w - panelW - progressW - 4 * pad);
+
   const bodyY = context.camera.bottom + pad + bodyH / 2 - gridSize / 2;
-  const x0 = context.camera.left + pad;
+  const totalW = gridSize + pad + progressW + pad + panelW;
+  const x0 = context.camera.left + (w - totalW) / 2;
   return {
     menu: boxFromBounds(
       x0,
-      context.camera.right - pad,
+      x0 + totalW,
       context.camera.top - pad - menuH,
       context.camera.top - pad
     ),
