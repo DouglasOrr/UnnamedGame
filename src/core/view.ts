@@ -1479,6 +1479,24 @@ class AchievementsScene implements Scene {
     );
   }
 
+  static createAchievementElement(a: G.AchievementState): HTMLElement {
+    const div = document.createElement("div");
+    div.classList.add("achievement");
+    div.innerHTML = `
+        <img src="img/menu/trophy.png" class="achievement-icon" />
+        <b>${a.achievement.title}</b><span>${a.achievement.description}</span>
+      `;
+    div.style.display = "flex";
+    div.style.alignItems = "center";
+    const aIcon = div.querySelector(".achievement-icon") as HTMLImageElement;
+    aIcon.style.filter = a.unlock ? "brightness(0)" : "brightness(0.5)";
+    if (a.unlock) {
+      const unlockDate = new Date(a.unlock);
+      div.title = `Unlocked ${unlockDate.toDateString()} ${unlockDate.toLocaleTimeString()}`;
+    }
+    return div;
+  }
+
   private buildAchievementList(listElement: HTMLElement): void {
     listElement.innerHTML = "";
     const achievements = G.AchievementTracker.list();
@@ -1493,23 +1511,7 @@ class AchievementsScene implements Scene {
       return a.achievement.priority! - b.achievement.priority!;
     });
     for (const a of achievements) {
-      const aElement = document.createElement("div");
-      aElement.classList.add("achievement");
-      aElement.innerHTML = `
-        <img src="img/menu/trophy.png" class="achievement-icon" />
-        <b>${a.achievement.title}</b><span>${a.achievement.description}</span>
-      `;
-      aElement.style.display = "flex";
-      aElement.style.alignItems = "center";
-      const aIcon = aElement.querySelector(
-        ".achievement-icon"
-      ) as HTMLImageElement;
-      aIcon.style.filter = a.unlock ? "brightness(0)" : "brightness(0.5)";
-      if (a.unlock) {
-        const unlockDate = new Date(a.unlock);
-        aElement.title = `Unlocked ${unlockDate.toDateString()} ${unlockDate.toLocaleTimeString()}`;
-      }
-      listElement.appendChild(aElement);
+      listElement.appendChild(AchievementsScene.createAchievementElement(a));
     }
   }
 
@@ -1630,6 +1632,52 @@ class RunOutcomeScene implements Scene {
   }
 }
 
+class AchievementOverlay {
+  readonly element: HTMLElement;
+  queue: G.AchievementState[] = [];
+  timer: number | null = null;
+
+  constructor() {
+    this.element = document.createElement("div");
+    this.element.classList.add("achievement-overlay");
+    this.element.innerText = "This is the achievement overlay";
+    this.element.style.display = "none";
+    document.body.appendChild(this.element);
+  }
+
+  onUnlock(achievement: G.AchievementState) {
+    this.queue.push(achievement);
+  }
+
+  update(dt: number) {
+    const showDuration = 3.5; // seconds
+    const fadeDuration = 1; // seconds
+
+    if (this.timer !== null) {
+      this.timer -= dt;
+      if (this.timer <= fadeDuration) {
+        this.element.style.opacity = Math.max(
+          0,
+          this.timer / fadeDuration
+        ).toString();
+      }
+      if (this.timer <= 0) {
+        this.element.style.display = "none";
+        this.timer = null;
+      }
+    }
+    if (this.timer === null && this.queue.length > 0) {
+      this.element.innerHTML = "";
+      this.element.appendChild(
+        AchievementsScene.createAchievementElement(this.queue.shift()!)
+      );
+      this.element.style.opacity = "1";
+      this.element.style.display = "block";
+      this.timer = showDuration;
+    }
+  }
+}
+
 // Top-level renderer
 
 class Renderer {
@@ -1637,6 +1685,7 @@ class Renderer {
   private readonly camera: THREE.OrthographicCamera;
   private readonly mouse: Mouse;
   private readonly tooltip: Tooltip;
+  private readonly achievementOverlay = new AchievementOverlay();
 
   // State
   private lastTime: number | null = null;
@@ -1662,7 +1711,8 @@ class Renderer {
     this.nextScene();
 
     G.AchievementTracker.onUnlock = (achievement) => {
-      console.log(`Achievement unlocked: ${JSON.stringify(achievement)}`); // TODO
+      console.log(`Achievement unlocked: ${JSON.stringify(achievement)}`);
+      this.achievementOverlay.onUnlock(achievement);
     };
   }
 
@@ -1757,11 +1807,12 @@ class Renderer {
     if (this.lastTime === null) {
       this.lastTime = time;
     }
-    // const dt = (time - this.lastTime) / 1000; // for animations
+    const dt = (time - this.lastTime) / 1000;
     this.lastTime = time;
     this.mouse.update();
 
     // Update scene
+    this.achievementOverlay.update(dt);
     if (this.scene?.finished()) {
       this.nextScene();
     }

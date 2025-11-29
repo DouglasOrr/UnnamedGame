@@ -5,11 +5,13 @@ import * as S from "./core/sound";
 import * as V from "./core/view";
 
 window.onload = () => {
+  // G.AchievementTracker.reset();
   G.registerItems(Items);
   S.start();
 
   const settings: G.GameSettings = {
-    skipTo: null, //"achievements",
+    skipTo: "run",
+    // skipTo: "achievements",
     run: R.standardSettings({
       waves: 20,
       start: { common: 4, uncommon: 2, rare: 1 },
@@ -18,7 +20,11 @@ window.onload = () => {
         // Actions
         "swap",
         "swap",
+        // "wildcard",
         // "gravity",
+        // "shift",
+        // "flip_y",
+
         // Patterns
         // Bonuses
       ],

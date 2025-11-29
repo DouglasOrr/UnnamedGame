@@ -58,10 +58,16 @@ class PlayerStats {
       0
     );
   }
+  countUsedActions(): number {
+    return Object.values(this.actionsUsed).reduce(
+      (acc, count) => acc + +(count > 0),
+      0
+    );
+  }
 }
 
-function totalPatterns(): number {
-  return Object.values(Items).filter((item) => item.kind === "pattern").length;
+function totalOfKind(kind: string): number {
+  return Object.values(Items).filter((item) => item.kind === kind).length;
 }
 
 // Achievement Definitions
@@ -147,9 +153,17 @@ register({
   name: "match_all",
   title: "Match 'em All",
   description: "Match every pattern at least once",
-  check: (player) => player.countMatchedPatterns() >= totalPatterns(),
+  check: (player) => player.countMatchedPatterns() >= totalOfKind("pattern"),
   progress: (player) =>
-    Math.min(1, player.countMatchedPatterns() / totalPatterns()),
+    Math.min(1, player.countMatchedPatterns() / totalOfKind("pattern")),
+});
+register({
+  name: "use_all",
+  title: "Use 'em All",
+  description: "Use every action at least once",
+  check: (player) => player.countUsedActions() >= totalOfKind("action"),
+  progress: (player) =>
+    Math.min(1, player.countUsedActions() / totalOfKind("action")),
 });
 
 // Special
@@ -190,15 +204,20 @@ register({
 const PLAYER_STATS_KEY = "player_stats";
 const UNLOCKS_KEY = "unlocked_achievements";
 
+export type AchievementState = {
+  achievement: Achievement;
+  unlock: number | null;
+};
+
 class AchievementTrackerImpl {
   private playerStats: PlayerStats = new PlayerStats();
   private unlocks: Record<string, number> = {};
   private runStats: RunStats | null = null;
-  onUnlock: ((achievement: Achievement) => void) | null = null;
+  onUnlock: ((achievement: AchievementState) => void) | null = null;
 
   constructor() {
     this.load();
-    console.log(`Loaded achievements: ${Object.keys(this.unlocks)}.`);
+    console.log(`Loaded achievements: ${Object.keys(this.unlocks)}`);
     console.log(`Player stats: ${JSON.stringify(this.playerStats)}`);
   }
 
@@ -224,7 +243,7 @@ class AchievementTrackerImpl {
     if (!(achievement.name in this.unlocks)) {
       this.unlocks[achievement.name] = Date.now();
       if (this.onUnlock) {
-        this.onUnlock(achievement);
+        this.onUnlock({ achievement, unlock: this.unlocks[achievement.name] });
       }
     }
   }
@@ -311,8 +330,8 @@ class AchievementTrackerImpl {
 
   // Query
 
-  list(): { achievement: Achievement; unlock: number | null }[] {
-    const result: { achievement: Achievement; unlock: number | null }[] = [];
+  list(): AchievementState[] {
+    const result: AchievementState[] = [];
     for (const achievement of Object.values(Achievements)) {
       result.push({
         achievement,
