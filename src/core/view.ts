@@ -1580,10 +1580,12 @@ class AchievementsScene implements Scene {
     this.element.classList.add("screen");
     this.element.innerHTML = `
       <h1>Achievements</h1>
-      <button id="achievements-reset">Reset<br>(triple-click)</button>
+      <img class="back-button" src="img/menu/home.png" alt="Home">
       <div id="achievements-stats"></div>
       <div id="achievements-list"></div>
-      <img class="back-button" src="img/menu/home.png" alt="Home">
+      <div id="achievements-button-container">
+        <button id="achievements-reset">Reset<br>(triple-click)</button>
+      </div>
     `;
     document.body.appendChild(this.element);
 

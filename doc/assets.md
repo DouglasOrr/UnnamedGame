@@ -14,3 +14,7 @@ Music from [zapsplat.com](https://www.zapsplat.com/) (attribution required).
 | music_zapsplat_as_time_passes_124      | As Time Passes – marimba driven underscore with an inquisitive, informational and factual feel, marimba leads with percussion underneath, great for science, learning, world issues etc | ZapSplat        |
 | audio_hero_Single-Malt_SIPML_C-1105    | Single Malt – funky and jazzy easy listening music with electric piano, muted guitar rhythm, drums and slap bass                                                                        | Audio Hero      |
 | audio_hero_Urban-Delivery_SIPML_C-0810 | Urban Delivery – smooth easy listening jazz with funky bass, electric guitar, electric piano, percussion including bongos and drums                                                     | Audio Hero      |
+
+## Font
+
+Uses [Schoolbell](https://fonts.google.com/specimen/Schoolbell) by Font Diner.
