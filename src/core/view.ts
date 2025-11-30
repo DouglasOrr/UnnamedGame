@@ -605,6 +605,10 @@ class GridView {
   private readonly hoverOutline: Outline;
   private readonly srcOutline: Outline;
   private swapSrc: number | null = null;
+  // Animation
+  private prev: { grid: W.Grid; roll: number; frame: number };
+  private revealElapsed = 0;
+  private cellRevealStart: number[] = [];
 
   constructor(
     private readonly wave: W.Wave,
@@ -632,15 +636,49 @@ class GridView {
     this.hoverOutline.line.visible = false;
     this.srcOutline = new Outline(Colors.grid.src, 0.05, this.context.scene);
     this.srcOutline.line.visible = false;
+    this.prev = { grid: wave.grid, roll: wave.roll, frame: wave.frame };
+    this.startGridAnimation(this.wave.grid);
+  }
+
+  private startGridAnimation(grid: W.Grid, animate: boolean = true): void {
+    const RevealTime = 0.75;
+    this.cellRevealStart = grid.cells.map(
+      (_, idx) => (idx * RevealTime) / grid.cells.length
+    );
+    this.revealElapsed = animate ? 0 : Infinity;
+  }
+
+  private cellRevealAmount(index: number): number {
+    const CellRevealDuration = 0.1;
+    const t = this.revealElapsed - (this.cellRevealStart[index] ?? 0);
+    return Math.max(0, Math.min(1, t / CellRevealDuration));
   }
 
   // Update instance matrices to match layout.grid and the current wave.grid
-  update(bounds: Box): void {
+  update(bounds: Box, dt: number): void {
     const MarkSizeRatio = 0.5;
     const MarkHoverGrow = 1.05;
     const OutlinePad = 0.04;
 
     const grid = this.wave.grid;
+
+    // Animation
+    if (
+      this.prev.grid !== grid ||
+      this.cellRevealStart.length !== grid.cells.length
+    ) {
+      const animate =
+        this.prev.roll !== this.wave.roll ||
+        this.prev.frame !== this.wave.frame;
+      this.startGridAnimation(grid, animate);
+    }
+    this.prev = {
+      grid: this.wave.grid,
+      roll: this.wave.roll,
+      frame: this.wave.frame,
+    };
+    this.revealElapsed += dt;
+
     const cellSize = Math.min(
       bounds.w / (grid.cols + 2),
       bounds.h / (grid.rows + 2)
@@ -762,7 +800,9 @@ class GridView {
         : grid.cells[i] === W.Cell.O
         ? Colors.grid.o
         : Colors.grid.xw;
-      const size = hoverIndices.has(i) ? MarkHoverGrow * markSize : markSize;
+      const size =
+        this.cellRevealAmount(i) *
+        (hoverIndices.has(i) ? MarkHoverGrow * markSize : markSize);
       this.cells.update(
         i,
         /*pos*/ [x, y],
@@ -808,6 +848,7 @@ class ProgressView {
   private readonly background: THREE.Mesh;
   private readonly fill: [THREE.Mesh, THREE.Mesh, THREE.Mesh];
   private hoverComponent: number | null = null;
+  private prevProgress: number;
 
   constructor(
     private readonly wave: W.Wave,
@@ -842,13 +883,35 @@ class ProgressView {
       f.position.z = 0.02;
       this.context.scene.add(f);
     }
+    this.prevProgress = this.progress();
+  }
+
+  private progress(): number {
+    return Math.max(0, this.wave.s.targetScore - this.wave.totalScore);
+  }
+
+  private animatedProgress(dt: number): number {
+    const LerpSpeed = 6;
+    const FinishedThreshold = 0.1;
+
+    const actualRemaining = this.progress();
+    if (!Number.isFinite(this.prevProgress)) {
+      this.prevProgress = actualRemaining;
+    }
+    const diff = actualRemaining - this.prevProgress;
+    if (Math.abs(diff) < FinishedThreshold) {
+      this.prevProgress = actualRemaining;
+    } else {
+      this.prevProgress += diff * Math.min(1, dt * LerpSpeed);
+    }
+    return Math.min(this.wave.s.targetScore, Math.max(0, this.prevProgress));
   }
 
   hover(component: number | null) {
     this.hoverComponent = component;
   }
 
-  update(bounds: Box): void {
+  update(bounds: Box, dt: number): void {
     // Basic layout
     const inset = 0.2 * Math.min(bounds.w, bounds.h);
     const innerW = bounds.w - 2 * inset;
@@ -864,10 +927,7 @@ class ProgressView {
     this.background.scale.set(innerW, innerH, 1);
 
     // Progress
-    const progressAll = Math.max(
-      0,
-      this.wave.s.targetScore - this.wave.totalScore
-    );
+    const progressAll = this.animatedProgress(dt);
     let progress2 = 0;
     let progress1 = Math.min(progressAll, this.wave.score.total);
     const progress0 = Math.max(0, progressAll - progress1);
@@ -928,7 +988,7 @@ class ProgressView {
     } else {
       this.context.tooltip.show(this, bounds, () => {
         const sep = "<br>&nbsp;&nbsp;&nbsp;";
-        let text = `${fmt_number(progressAll)} nnats<br>− ${fmt_number(
+        let text = `${fmt_number(this.progress())} nnats<br>− ${fmt_number(
           this.wave.score.total
         )} nnats`;
         text += `<br>&nbsp;= `;
@@ -1304,7 +1364,7 @@ interface Scene {
   readonly context: ViewContext;
   navigate(): Menu;
   finished(): boolean;
-  update(): void;
+  update(dt: number): void;
   dispose(): void;
 }
 
@@ -1347,11 +1407,11 @@ class WaveScene implements Scene {
     return this.wave.status !== "playing" || this.navigateTo !== null;
   }
 
-  update(): void {
+  update(dt: number): void {
     const layout = topLevelLayout(this.context);
     this.menu.update(layout.menu);
-    this.gridView.update(layout.main);
-    this.progressView.update(layout.progress);
+    this.gridView.update(layout.main, dt);
+    this.progressView.update(layout.progress, dt);
     this.panelView.update(layout.panel);
   }
 
@@ -2017,7 +2077,7 @@ class Renderer {
     if (this.lastTime === null) {
       this.lastTime = time;
     }
-    const dt = (time - this.lastTime) / 1000;
+    const dt = Math.max(0, (time - this.lastTime) / 1000);
     this.lastTime = time;
     this.mouse.update();
 
@@ -2026,7 +2086,7 @@ class Renderer {
     if (this.scene?.finished()) {
       this.nextScene();
     }
-    this.scene?.update();
+    this.scene?.update(dt);
 
     // Render
     this.mouse.postUpdate();
