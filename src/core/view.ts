@@ -1407,11 +1407,17 @@ class SelectScene implements Scene {
 class MainMenuScene implements Scene {
   private destination: Menu = null;
   private destinationLevel: string = "level_0";
+  private readonly element: HTMLElement;
   private readonly mainButtons: Button[] = [];
   private readonly levelButtons: Button[] = [];
 
   constructor(readonly context: ViewContext) {
     context.scene.background = Colors.background;
+
+    this.element = document.createElement("div");
+    this.element.classList.add("screen");
+    this.element.innerHTML = `<h1>Patternats</h1>`;
+    document.body.appendChild(this.element);
 
     const addButton = (texture: string, tip: string, dest: Menu) => {
       this.mainButtons.push(
@@ -1480,8 +1486,8 @@ class MainMenuScene implements Scene {
     const buttonSize = Math.min(w * 0.15, h * 0.2);
     const spacing = buttonSize * 1.5;
     const totalWidth = spacing * (this.mainButtons.length - 1);
-    const startX = w / 2 - totalWidth / 2;
-    const centerY = h / 2;
+    const startX = this.context.camera.left + w / 2 - totalWidth / 2;
+    const centerY = this.context.camera.bottom + 0.55 * h;
 
     for (let i = 0; i < this.mainButtons.length; i++) {
       this.mainButtons[i].update(
@@ -1508,6 +1514,7 @@ class MainMenuScene implements Scene {
   }
 
   dispose(): void {
+    document.body.removeChild(this.element);
     disposeScene(this.context.scene);
   }
 }
