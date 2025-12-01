@@ -74,6 +74,9 @@ const Colors = {
 };
 
 function fmt_number(n: number): string {
+  if (Math.abs(n) >= 10) {
+    return n.toFixed(0);
+  }
   const s = n.toString();
   if (s.length <= 3) {
     return s;
