@@ -1618,7 +1618,7 @@ class IntroductionScene implements Scene {
       <h1>Your first run</h1>
       <div class="introduction">
         <p>Waves of entropy are crashing through the cosmos, threatening to
-        make life <em>infinitely boring</em>. Your job is to restore order by
+        make life <em>infinitely boring</em>. You must restore order by
         finding patterns in the fundamental fabric of reality.</p>
 
         <ul>
