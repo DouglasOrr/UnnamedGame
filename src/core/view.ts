@@ -2015,6 +2015,9 @@ class Renderer {
       this.achievementOverlay.onUnlock(achievement);
     };
 
+    // Disable context menu
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
     // Ctrl+Alt+\ to force win
     document.addEventListener("keydown", (e) => {
       if (e.key === "\\" && e.altKey && e.ctrlKey && this.run !== null) {
