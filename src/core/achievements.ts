@@ -231,39 +231,32 @@ register({
 
 // Score
 register({
-  name: "score_500",
-  title: "Enthropic Journeyman",
-  description: "Subtract 500+ nnats with a single grid",
-  check: (player) => player.highestGridScore >= 500,
-  progress: (player) => Math.min(1, player.highestGridScore / 500),
-});
-register({
   name: "score_1000",
-  title: "Enthropic Adept",
+  title: "Enthropic Journeyman",
   description: "Subtract 1000+ nnats with a single grid",
   check: (player) => player.highestGridScore >= 1000,
   progress: (player) => Math.min(1, player.highestGridScore / 1000),
 });
 register({
-  name: "score_3000",
+  name: "score_10000",
   title: "Enthropic Master",
-  description: "Subtract 3000+ nnats with a single grid",
-  check: (player) => player.highestGridScore >= 3000,
-  progress: (player) => Math.min(1, player.highestGridScore / 3000),
-});
-register({
-  name: "lifetime_score_40000",
-  title: "Tracker of Entropy",
-  description: "Subtract 40,000+ nnats total",
-  check: (player) => player.totalScore >= 40000,
-  progress: (player) => Math.min(1, player.totalScore / 40000),
+  description: "Subtract 10,000+ nnats with a single grid",
+  check: (player) => player.highestGridScore >= 10000,
+  progress: (player) => Math.min(1, player.highestGridScore / 10000),
 });
 register({
   name: "lifetime_score_100000",
-  title: "Hunter of Entropy",
+  title: "100 µnats",
   description: "Subtract 100,000+ nnats total",
   check: (player) => player.totalScore >= 100000,
   progress: (player) => Math.min(1, player.totalScore / 100000),
+});
+register({
+  name: "lifetime_score_1000000",
+  title: "1 mnat",
+  description: "Subtract 1,000,000+ nnats total",
+  check: (player) => player.totalScore >= 1000000,
+  progress: (player) => Math.min(1, player.totalScore / 1000000),
 });
 
 // Special

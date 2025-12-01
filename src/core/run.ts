@@ -83,12 +83,26 @@ export interface RunSettings {
   offers: number;
 }
 
+export interface ScoreProgression {
+  start: number;
+  r_exp: number;
+  rate: number;
+  r_linear: number;
+}
+
+function targetScore(s: ScoreProgression, wave: number): number {
+  return Math.floor(
+    s.start *
+      (1 - s.r_exp + s.r_exp * Math.pow(s.rate, wave) + s.r_linear * wave)
+  );
+}
+
 export function standardSettings(s: {
   waves: number;
   start: Chance;
   end: Chance;
   items: string[];
-  scorePerWave: number;
+  score: ScoreProgression;
   startWithSelect?: boolean;
 }): RunSettings {
   const schedule: Phase[] = [];
@@ -114,7 +128,7 @@ export function standardSettings(s: {
         },
       });
     }
-    schedule.push({ type: "wave", targetScore: (w + 1) * s.scorePerWave });
+    schedule.push({ type: "wave", targetScore: targetScore(s.score, w) });
   }
 
   return {
@@ -232,16 +246,18 @@ export const Levels: Record<string, Level> = {};
 function registerLevel(level: Level): void {
   Levels[level.name] = level;
 }
+const likelihoodStart = { common: 4, uncommon: 1, rare: 0 };
+const likelihoodEnd = { common: 1, uncommon: 2, rare: 2 };
 registerLevel({
   name: "level_0",
   unlockedBy: null,
   title: "Level 1",
   settings: standardSettings({
     waves: 20,
-    start: { common: 4, uncommon: 1, rare: 0 },
-    end: { common: 1, uncommon: 2, rare: 2 },
+    start: likelihoodStart,
+    end: likelihoodEnd,
     items: ["swap", "swap", "square_m", "letter_l"],
-    scorePerWave: 100,
+    score: { start: 150, r_exp: 0.3, rate: 1.2, r_linear: 0.25 },
     startWithSelect: false,
   }),
 });
@@ -251,10 +267,10 @@ registerLevel({
   title: "Level 2",
   settings: standardSettings({
     waves: 20,
-    start: { common: 4, uncommon: 1, rare: 0 },
-    end: { common: 1, uncommon: 2, rare: 2 },
+    start: likelihoodStart,
+    end: likelihoodEnd,
     items: ["swap", "swap"],
-    scorePerWave: 150,
+    score: { start: 200, r_exp: 0.3, rate: 1.25, r_linear: 0.25 },
   }),
 });
 registerLevel({
@@ -263,21 +279,21 @@ registerLevel({
   title: "Level 3",
   settings: standardSettings({
     waves: 20,
-    start: { common: 4, uncommon: 1, rare: 0 },
-    end: { common: 1, uncommon: 2, rare: 2 },
+    start: likelihoodStart,
+    end: likelihoodEnd,
     items: ["swap", "swap"],
-    scorePerWave: 200,
+    score: { start: 225, r_exp: 0.3, rate: 1.3, r_linear: 0.3 },
   }),
 });
 registerLevel({
   name: "level_shift",
-  unlockedBy: "level_0",
+  unlockedBy: "level_1",
   title: "Shift & Flip (Challenge)",
   settings: standardSettings({
-    waves: 20,
-    start: { common: 4, uncommon: 1, rare: 0 },
-    end: { common: 1, uncommon: 2, rare: 2 },
+    waves: 10,
+    start: likelihoodStart,
+    end: likelihoodEnd,
     items: ["shift", "shift", "shift", "flip_y"],
-    scorePerWave: 100,
+    score: { start: 150, r_exp: 0.3, rate: 1.2, r_linear: 0.25 },
   }),
 });
