@@ -240,7 +240,7 @@ registerLevel({
     waves: 20,
     start: { common: 4, uncommon: 1, rare: 0 },
     end: { common: 1, uncommon: 2, rare: 2 },
-    items: ["swap", "swap", "square_m", "l"],
+    items: ["swap", "swap", "square_m", "letter_l"],
     scorePerWave: 100,
     startWithSelect: false,
   }),

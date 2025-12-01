@@ -210,7 +210,7 @@ pattern("Pinwheel", "--x-/xxx-/-xxx/-x--", 1500, "uncommon");
 
 function ppoints_flat(points: number, freq: Frequency): void {
   bonus(
-    [`ppoints_flat_${freq}`, freq, 1],
+    [`ppoints_flat_${freq}`, freq, Infinity],
     [
       `−${points} nnats/pattern`,
       `subtract an additional ${points} nnats from every pattern`,
@@ -229,7 +229,7 @@ function ppoints_flat(points: number, freq: Frequency): void {
 }
 ppoints_flat(3, "common");
 ppoints_flat(7, "uncommon");
-ppoints_flat(12, "rare");
+// ppoints_flat(12, "rare");
 
 bonus(
   ["pmult_symmetric", "uncommon", 1],
@@ -264,37 +264,27 @@ bonus(
   }
 );
 
+bonus(
+  ["pmult_size", "uncommon", 1],
+  ["Heavy Hitter", "multiply pattern nnats by ×1.1 per cell in the pattern"],
+  {
+    onScore(score: Score): void {
+      for (const component of score.components) {
+        for (const match of component.matches) {
+          match.points *= Math.pow(1.1, match.pattern.grid.cells.length);
+        }
+      }
+    },
+  }
+);
+
 // Bonuses::Group
-
-bonus(
-  ["points_per_cell", "common", Infinity],
-  ["Cell Points", "subtract 1 extra nnat per cell in a scoring group"],
-  {
-    onScore(score: Score): void {
-      for (const component of score.components) {
-        component.cellPoints += 1;
-      }
-    },
-  }
-);
-
-bonus(
-  ["score_every_group", "common", 1],
-  ["Everyone's A Winner", "every group scores, even with no matching patterns"],
-  {
-    onScore(score: Score): void {
-      for (const component of score.components) {
-        component.alwaysScoring = true;
-      }
-    },
-  }
-);
 
 function mult_flat(multiplier: number, freq: Frequency): void {
   bonus(
     [`mult_flat_${freq}`, freq, 1],
     [
-      `Group ${multiplier * 100}%`,
+      `${multiplier * 100}% Bonus`,
       `add a ${multiplier * 100}% multiplier to each group`,
     ],
     {
@@ -307,12 +297,12 @@ function mult_flat(multiplier: number, freq: Frequency): void {
     }
   );
 }
-mult_flat(0.05, "common");
-mult_flat(0.15, "uncommon");
-mult_flat(0.25, "rare");
+mult_flat(0.15, "common");
+mult_flat(0.2, "uncommon");
+// mult_flat(0.25, "rare");
 
 bonus(
-  ["mult_per_cell", "common", 1],
+  ["mult_per_cell", "uncommon", 1],
   ["Cell Bonus", "add 1% multiplier per cell to each group"],
   {
     onScore(score: Score): void {
@@ -325,30 +315,11 @@ bonus(
 
 bonus(
   ["mult_per_pattern", "uncommon", 1],
-  ["Pattern Bonus", "add 4% multiplier per pattern to each group"],
+  ["Pattern Bonus", "add 5% multiplier per pattern to each group"],
   {
     onScore(score: Score): void {
       for (const component of score.components) {
-        component.multiplier += 0.04 * component.matches.length;
-      }
-    },
-  }
-);
-
-bonus(
-  ["mult2_unique", "rare", 1],
-  [
-    "Pattern Bonus",
-    "multiply the group multiplier ×1.1 for each unique pattern in the group",
-  ],
-  {
-    onScore(score: Score): void {
-      for (const component of score.components) {
-        const uniquePatterns = new Set<string>();
-        for (const match of component.matches) {
-          uniquePatterns.add(match.pattern.name);
-        }
-        component.multiplier *= Math.pow(1.1, uniquePatterns.size);
+        component.multiplier += 0.05 * component.matches.length;
       }
     },
   }
@@ -372,7 +343,7 @@ function countEdges(cells: number[], grid: Grid): number {
 
 bonus(
   ["mult_per_edge", "common", 1],
-  ["Edge Bonus", "add 10% multiplier per touching grid edge"],
+  ["Edge Bonus", "add 10% group multiplier per touching grid edge"],
   {
     onScore(score: Score, grid: Grid): void {
       for (const component of score.components) {
@@ -383,17 +354,60 @@ bonus(
 );
 
 bonus(
+  ["mult2_unique", "rare", 1],
+  [
+    "Unique Pattern Bonus",
+    "multiply the group multiplier ×1.1 for each unique pattern in the group",
+  ],
+  {
+    onScore(score: Score): void {
+      for (const component of score.components) {
+        const uniquePatterns = new Set<string>();
+        for (const match of component.matches) {
+          uniquePatterns.add(match.pattern.name);
+        }
+        component.multiplier *= Math.pow(1.1, uniquePatterns.size);
+      }
+    },
+  }
+);
+
+bonus(
   ["mult_no_edges", "common", 1],
   [
-    "Floating ×2",
-    "multiply the group multiplier ×2 if not touching any grid edge",
+    "Floating Bonus",
+    "multiply the group multiplier ×3 if not touching any grid edge",
   ],
   {
     onScore(score: Score, grid: Grid): void {
       for (const component of score.components) {
         if (countEdges(component.cellIndices, grid) === 0) {
-          component.multiplier *= 2.0;
+          component.multiplier *= 3.0;
         }
+      }
+    },
+  }
+);
+
+bonus(
+  ["points_per_cell", "common", Infinity],
+  ["Better Cells", "subtract 1 extra nnat per cell in a scoring group"],
+  {
+    onScore(score: Score): void {
+      for (const component of score.components) {
+        component.cellPoints += 1;
+      }
+    },
+  }
+);
+
+bonus(
+  ["score_every_group", "common", 1],
+  ["Everyone's A Winner", "every group scores, even with no matching patterns"],
+  {
+    onScore(score: Score): void {
+      for (const component of score.components) {
+        component.alwaysScoring = true;
       }
     },
   }
@@ -436,15 +450,15 @@ function gpoints_flat(points: number, freq: Frequency): void {
     }
   );
 }
-gpoints_flat(20, "common");
-gpoints_flat(40, "uncommon");
-gpoints_flat(100, "rare");
+gpoints_flat(50, "common");
+gpoints_flat(75, "uncommon");
+// gpoints_flat(100, "rare");
 
 function gmult_flat(multiplier: number, freq: Frequency): void {
   bonus(
     [`gmult_flat_${freq}`, freq, 1],
     [
-      `Global ${multiplier * 100}%`,
+      `${multiplier * 100}% Discount`,
       `add a global ${multiplier * 100}% multiplier`,
     ],
     {
@@ -455,17 +469,46 @@ function gmult_flat(multiplier: number, freq: Frequency): void {
     }
   );
 }
-gmult_flat(0.05, "common");
-gmult_flat(0.15, "uncommon");
-gmult_flat(0.25, "rare");
+gmult_flat(0.15, "common");
+gmult_flat(0.2, "uncommon");
+// gmult_flat(0.25, "rare");
 
 bonus(
-  ["gmult_group_scoring", "uncommon", 1],
-  ["Group Discount", "for each scoring group, add a global 10% multiplier"],
+  ["gmult_cell", "rare", 1],
+  [
+    "Matched Cell Discount",
+    "for each matched pattern cell, add a global 1% multiplier",
+  ],
+  {
+    onScore(score: Score): void {
+      const matchedCells = score.components.reduce(
+        (c, n) =>
+          c + n.matches.reduce((cc, m) => cc + m.pattern.grid.cells.length, 0),
+        0
+      );
+      score.multiplier += 0.01 * matchedCells;
+    },
+  }
+);
+
+bonus(
+  ["gmult_pattern", "rare", 1],
+  ["Pattern Discount", "for each pattern match, add a global 5% multiplier"],
   {
     onScore(score: Score): void {
       score.multiplier +=
-        0.1 * score.components.filter((c) => c.matches.length > 0).length;
+        0.05 * score.components.reduce((c, n) => c + n.matches.length, 0);
+    },
+  }
+);
+
+bonus(
+  ["gmult_group_scoring", "uncommon", 1],
+  ["Group Discount", "for each scoring group, add a global 15% multiplier"],
+  {
+    onScore(score: Score): void {
+      score.multiplier +=
+        0.15 * score.components.filter((c) => c.matches.length > 0).length;
     },
     icon: `bonus/gmult_group.png`,
   }
@@ -474,24 +517,32 @@ bonus(
 bonus(
   ["gmult_group_all", "rare", 1],
   [
-    "Group Discount (+)",
-    "for each and every group, add a global 4% multiplier",
+    "All Groups Discount",
+    "for every group, scoring or not, add a global 5% multiplier",
   ],
   {
     onScore(score: Score): void {
-      score.multiplier += 0.04 * score.components.length;
+      score.multiplier += 0.05 * score.components.length;
     },
     icon: `bonus/gmult_group.png`,
   }
 );
 
 bonus(
-  ["gmult_pattern", "rare", 1],
-  ["Pattern Discount", "for each pattern, add a global 3% multiplier"],
+  ["gmult_pattern_unique", "uncommon", 1],
+  [
+    "Unique Pattern Discount",
+    "for each unique pattern, multiply the global multiplier ×1.1",
+  ],
   {
     onScore(score: Score): void {
-      score.multiplier +=
-        0.03 * score.components.reduce((c, n) => c + n.matches.length, 0);
+      const uniquePatterns = new Set<string>();
+      for (const component of score.components) {
+        for (const match of component.matches) {
+          uniquePatterns.add(match.pattern.name);
+        }
+      }
+      score.multiplier *= Math.pow(1.1, uniquePatterns.size);
     },
   }
 );
