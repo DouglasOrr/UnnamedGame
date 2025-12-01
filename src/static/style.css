@@ -12,7 +12,7 @@ body {
   font-size: 18px;
   /* sync with View.Colors.background */
   background-color: #d4d4d4;
-  overflow: auto;
+  overflow: hidden;
 }
 #canvas-main {
   position: fixed;
@@ -116,6 +116,7 @@ input[type="checkbox"]:checked {
   color: #333;
   user-select: none;
   pointer-events: none;
+  overflow: auto;
 }
 .screen button,
 .screen a,
