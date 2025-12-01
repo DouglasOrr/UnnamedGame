@@ -253,15 +253,22 @@ function renderPatternTexture(pattern: W.Pattern): THREE.Texture {
   const fillSize = FillRatio * cellSize;
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#ffffffa0";
   for (let i = 0; i < pattern.grid.elements; i++) {
     const row = Math.floor(i / pattern.grid.cols);
     const col = i % pattern.grid.cols;
     const cell = pattern.grid.get(row, col);
-    if (cell !== W.Cell.O) {
+    if (cell !== W.Cell.O || true) {
       const cx = Size * 0.5 + cellSize * (col + 0.5 - pattern.grid.cols / 2);
       const cy = Size * 0.5 + cellSize * (row + 0.5 - pattern.grid.rows / 2);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(cx - fillSize / 2, cy - fillSize / 2, fillSize, fillSize);
+      if (cell === W.Cell.O) {
+        ctx.lineWidth = fillSize * 0.15;
+        ctx.beginPath();
+        ctx.arc(cx, cy, fillSize / 2 - ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.fillRect(cx - fillSize / 2, cy - fillSize / 2, fillSize, fillSize);
+      }
     }
   }
 
@@ -1140,6 +1147,7 @@ class PanelView {
   private static readonly Controls = [
     {
       name: "submit",
+      tip: "Submit grid",
       click: (wave: W.Wave) => {
         wave.submit();
         S.Effects.play("submit");
@@ -1148,6 +1156,7 @@ class PanelView {
     },
     {
       name: "reroll",
+      tip: "Reroll grid (can't be undone)",
       click: (wave: W.Wave) => {
         wave.reroll();
         S.Effects.play("reroll");
@@ -1156,11 +1165,13 @@ class PanelView {
     },
     {
       name: "undo",
+      tip: "Undo action",
       click: (wave: W.Wave) => wave.undo(),
       enable: (wave: W.Wave) => wave.canUndo,
     },
     {
       name: "redo",
+      tip: "Redo action",
       click: (wave: W.Wave) => wave.redo(),
       enable: (wave: W.Wave) => wave.canRedo,
     },
@@ -1172,7 +1183,7 @@ class PanelView {
         new Button(
           loadTexture(`img/control/${control.name}.png`),
           Colors.foreground,
-          /*tipText*/ null,
+          control.tip,
           context,
           () => control.click(this.wave),
           (button) => {
@@ -1611,10 +1622,10 @@ class IntroductionScene implements Scene {
         finding patterns in the fundamental fabric of reality.</p>
 
         <ul>
-          <li>Your goal is to reduce entropy (measured in nano nats, <b>nnats</b>), by making patterns in a <b>grid</b>.</li>
+          <li>Your goal is to reduce entropy (measured in <b>nnats</b>), by making patterns in a <b>grid</b>.</li>
           <li>You've 3 grids per <b>wave</b> to reduce entropy to zero, or the game is over.</li>
           <li>You can collect <b>actions</b>, <b>patterns</b>, and <b>bonuses</b> to help you.</li>
-          <li><b>Actions</b> like swap <img src="img/action/swap.png"> are selected and used manually on the grid.</li>
+          <li><b>Actions</b> like swap <img src="img/action/swap.png"> must be selected and used manually on the grid.</li>
           <li><b>Patterns</b> are matched automatically <em>(try hovering the grid)</em>.</li>
           <li><b>Bonuses</b> apply extra effects to reduce entropy.</li>
         </ul>

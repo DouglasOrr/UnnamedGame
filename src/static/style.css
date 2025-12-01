@@ -9,6 +9,7 @@ body {
   height: 100%;
   margin: 0;
   font-family: "Schoolbell", sans-serif;
+  font-size: 22px;
   /* sync with View.Colors.background */
   background-color: #d4d4d4;
 }

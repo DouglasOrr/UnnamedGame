@@ -257,7 +257,7 @@ registerLevel({
     start: likelihoodStart,
     end: likelihoodEnd,
     items: ["swap", "swap", "square_m", "letter_l"],
-    score: { start: 150, r_exp: 0.3, rate: 1.2, r_linear: 0.25 },
+    score: { start: 100, r_exp: 0.3, rate: 1.2, r_linear: 0.5 },
     startWithSelect: false,
   }),
 });
@@ -270,7 +270,7 @@ registerLevel({
     start: likelihoodStart,
     end: likelihoodEnd,
     items: ["swap", "swap"],
-    score: { start: 200, r_exp: 0.3, rate: 1.25, r_linear: 0.25 },
+    score: { start: 200, r_exp: 0.3, rate: 1.25, r_linear: 0.6 },
   }),
 });
 registerLevel({
@@ -282,7 +282,7 @@ registerLevel({
     start: likelihoodStart,
     end: likelihoodEnd,
     items: ["swap", "swap"],
-    score: { start: 225, r_exp: 0.3, rate: 1.3, r_linear: 0.3 },
+    score: { start: 250, r_exp: 0.3, rate: 1.35, r_linear: 0.7 },
   }),
 });
 registerLevel({
@@ -294,6 +294,6 @@ registerLevel({
     start: likelihoodStart,
     end: likelihoodEnd,
     items: ["shift", "shift", "shift", "flip_y"],
-    score: { start: 150, r_exp: 0.3, rate: 1.2, r_linear: 0.25 },
+    score: { start: 200, r_exp: 0.3, rate: 1.25, r_linear: 0.6 },
   }),
 });
