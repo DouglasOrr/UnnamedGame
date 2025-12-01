@@ -174,6 +174,8 @@ function register(achievement: Achievement) {
   achievement.priority = nextPriority++;
   Achievements[achievement.name] = achievement;
 }
+
+// Basics
 register({
   name: "first_wave",
   title: "First Steps",
@@ -185,27 +187,6 @@ register({
   title: "Nat-ural",
   description: "Win your first run",
   check: (player) => player.runsWon >= 1,
-});
-register({
-  name: "waves_10",
-  title: "Wave Rider",
-  description: "Complete 10 waves, total",
-  check: (player) => player.wavesCompleted >= 10,
-  progress: (player) => Math.min(1, player.wavesCompleted / 10),
-});
-register({
-  name: "waves_50",
-  title: "Seasoned",
-  description: "Complete 50 waves, total",
-  check: (player) => player.wavesCompleted >= 50,
-  progress: (player) => Math.min(1, player.wavesCompleted / 50),
-});
-register({
-  name: "wins_5",
-  title: "Champion",
-  description: "Win 5 runs",
-  check: (player) => player.runsWon >= 5,
-  progress: (player) => Math.min(1, player.runsWon / 5),
 });
 register({
   name: "all_levels",
@@ -225,44 +206,134 @@ register({
   },
 });
 
+// Progression
+register({
+  name: "wins_5",
+  title: "Champion",
+  description: "Win 5 runs",
+  check: (player) => player.runsWon >= 5,
+  progress: (player) => Math.min(1, player.runsWon / 5),
+});
+register({
+  name: "waves_10",
+  title: "Wave Rider",
+  description: "Complete 10 waves, total",
+  check: (player) => player.wavesCompleted >= 10,
+  progress: (player) => Math.min(1, player.wavesCompleted / 10),
+});
+register({
+  name: "waves_50",
+  title: "Wave Warrior",
+  description: "Complete 50 waves, total",
+  check: (player) => player.wavesCompleted >= 50,
+  progress: (player) => Math.min(1, player.wavesCompleted / 50),
+});
+
 // Score
 register({
   name: "score_500",
-  title: "High Scorer",
+  title: "Enthropic Journeyman",
   description: "Subtract 500+ nnats with a single grid",
   check: (player) => player.highestGridScore >= 500,
   progress: (player) => Math.min(1, player.highestGridScore / 500),
 });
 register({
   name: "score_1000",
-  title: "Master Scorer",
+  title: "Enthropic Adept",
   description: "Subtract 1000+ nnats with a single grid",
   check: (player) => player.highestGridScore >= 1000,
   progress: (player) => Math.min(1, player.highestGridScore / 1000),
 });
 register({
-  name: "run_score_10000",
-  title: "Prolific",
-  description: "Subtract 10,000+ nnats total in a single run",
-  check: (player) => player.highestRunScore >= 10000,
-  progress: (player) => Math.min(1, player.highestRunScore / 10000),
+  name: "score_3000",
+  title: "Enthropic Master",
+  description: "Subtract 3000+ nnats with a single grid",
+  check: (player) => player.highestGridScore >= 3000,
+  progress: (player) => Math.min(1, player.highestGridScore / 3000),
+});
+register({
+  name: "lifetime_score_40000",
+  title: "Tracker of Entropy",
+  description: "Subtract 40,000+ nnats total",
+  check: (player) => player.totalScore >= 40000,
+  progress: (player) => Math.min(1, player.totalScore / 40000),
 });
 register({
   name: "lifetime_score_100000",
-  title: "Entropy Hunter",
+  title: "Hunter of Entropy",
   description: "Subtract 100,000+ nnats total",
   check: (player) => player.totalScore >= 100000,
   progress: (player) => Math.min(1, player.totalScore / 100000),
 });
 
-// Items
+// Special
+register({
+  name: "one_group",
+  title: "One Group to Rule Them All",
+  description: "Score a grid with everything connected in a single group",
+  check: () => false,
+  checkOnGridScored: (_, score) => score.components.length === 1,
+});
+register({
+  name: "match_3",
+  title: "Triple Threat",
+  description: "Match 3 different patterns with a single grid",
+  check: () => false,
+  checkOnGridScored: (_, score) => {
+    for (const component of score.components) {
+      const uniquePatterns = new Set(
+        component.matches.map((match) => match.pattern.name)
+      );
+      if (uniquePatterns.size >= 3) {
+        return true;
+      }
+    }
+    return false;
+  },
+});
+register({
+  name: "5_groups",
+  title: "Group Effort",
+  description: "Score a grid with patterns in 5 distinct groups",
+  check: () => false,
+  checkOnGridScored: (_, score) =>
+    score.components.filter((c) => c.matches.length > 0).length >= 5,
+});
+register({
+  name: "safe_20",
+  title: "Playing it safe",
+  description: "Defeat 20 waves with grids to spare",
+  check: (player) => player.wavesWithFramesRemaining >= 20,
+  progress: (player) => Math.min(1, player.wavesWithFramesRemaining / 20),
+});
+register({
+  name: "mvp",
+  title: "Minimum Viable Pattern",
+  description: "Win a run holding just one pattern",
+  check: () => false,
+  checkOnRunEnd: (run, outcome) => {
+    return (
+      outcome.result === "win" &&
+      run.items.filter((item) => item.kind === "pattern").length === 1
+    );
+  },
+});
+register({
+  name: "collect_uncommon",
+  title: "Uncommon Interests",
+  description: "Collect 10 different uncommon items",
+  check: (player) => player.countItemsOfFreq("uncommon") >= 10,
+  progress: (player) => Math.min(1, player.countItemsOfFreq("uncommon") / 10),
+});
 register({
   name: "collect_rare",
-  title: "Rare Collector",
-  description: "Collect 10 different rare items",
-  check: (player) => player.countItemsOfFreq("rare") >= 10,
-  progress: (player) => Math.min(1, player.countItemsOfFreq("rare") / 10),
+  title: "Rare Breed",
+  description: "Collect 5 different rare items",
+  check: (player) => player.countItemsOfFreq("rare") >= 5,
+  progress: (player) => Math.min(1, player.countItemsOfFreq("rare") / 5),
 });
+
+// "Heavy" Achievements
 register({
   name: "collect_all",
   title: "Catch 'em All",
@@ -313,59 +384,6 @@ register({
     }
     return missing;
   },
-});
-
-// Special
-register({
-  name: "one_group",
-  title: "One Group to Rule Them All",
-  description: "Score a grid with everything connected in a single group",
-  check: () => false,
-  checkOnGridScored: (_, score) => score.components.length === 1,
-});
-register({
-  name: "match_3",
-  title: "Triple Threat",
-  description: "Match 3 different patterns with a single grid",
-  check: () => false,
-  checkOnGridScored: (_, score) => {
-    for (const component of score.components) {
-      const uniquePatterns = new Set(
-        component.matches.map((match) => match.pattern.name)
-      );
-      if (uniquePatterns.size >= 3) {
-        return true;
-      }
-    }
-    return false;
-  },
-});
-register({
-  name: "5_groups",
-  title: "Group Effort",
-  description: "Score a grid with patterns in 5 distinct groups",
-  check: () => false,
-  checkOnGridScored: (_, score) =>
-    score.components.filter((c) => c.matches.length > 0).length >= 5,
-});
-register({
-  name: "mvp",
-  title: "Minimum Viable Pattern",
-  description: "Win a run holding just one pattern",
-  check: () => false,
-  checkOnRunEnd: (run, outcome) => {
-    return (
-      outcome.result === "win" &&
-      run.items.filter((item) => item.kind === "pattern").length === 1
-    );
-  },
-});
-register({
-  name: "safe_20",
-  title: "Playing it safe",
-  description: "Defeat 20 waves with grids to spare",
-  check: (player) => player.wavesWithFramesRemaining >= 20,
-  progress: (player) => Math.min(1, player.wavesWithFramesRemaining / 20),
 });
 
 // Achievement Tracker Singleton
