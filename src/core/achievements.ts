@@ -139,13 +139,13 @@ class PlayerStats {
   }
   countItemsOfFreq(freq: string): number {
     return Object.entries(this.itemsCollected).reduce(
-      (acc, [item, count]) => acc + count * +(Items[item].freq === freq),
+      (acc, [item, count]) => acc + count * +(Items[item]?.freq === freq),
       0
     );
   }
   countMatchedPatterns(): number {
     return Object.keys(this.patternsMatched).reduce(
-      (acc, item) => acc + +(Items[item].kind === "pattern"),
+      (acc, item) => acc + +(Items[item]?.kind === "pattern"),
       0
     );
   }
@@ -272,9 +272,9 @@ register({
     Math.min(1, player.countItems() / Object.keys(Items).length),
   todo: (player) => {
     const missing: string[] = [];
-    for (const itemName of Object.keys(Items)) {
-      if (!(itemName in player.itemsCollected)) {
-        missing.push(Items[itemName].title);
+    for (const item of Object.keys(Items)) {
+      if (!(item in player.itemsCollected)) {
+        missing.push(Items[item].title);
       }
     }
     return missing;
@@ -289,12 +289,9 @@ register({
     Math.min(1, player.countMatchedPatterns() / totalOfKind("pattern")),
   todo: (player) => {
     const missing: string[] = [];
-    for (const itemName of Object.keys(Items)) {
-      if (
-        Items[itemName].kind === "pattern" &&
-        !(itemName in player.patternsMatched)
-      ) {
-        missing.push(Items[itemName].title);
+    for (const item of Object.keys(Items)) {
+      if (Items[item].kind === "pattern" && !(item in player.patternsMatched)) {
+        missing.push(Items[item].title);
       }
     }
     return missing;
@@ -309,12 +306,9 @@ register({
     Math.min(1, player.countUsedActions() / totalOfKind("action")),
   todo: (player) => {
     const missing: string[] = [];
-    for (const itemName of Object.keys(Items)) {
-      if (
-        Items[itemName].kind === "action" &&
-        !(itemName in player.actionsUsed)
-      ) {
-        missing.push(Items[itemName].title);
+    for (const item of Object.keys(Items)) {
+      if (Items[item].kind === "action" && !(item in player.actionsUsed)) {
+        missing.push(Items[item].title);
       }
     }
     return missing;

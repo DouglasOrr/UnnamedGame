@@ -164,38 +164,45 @@ action(
 
 // Patterns
 
+// Squares
 pattern("Square S", "xx/xx", 3, "common");
 pattern("Square M", "xxx/xxx/xxx", 30, "common");
-pattern("Square L", "xxxx/xxxx/xxxx/xxxx", 250, "rare");
-pattern("Square XL", "xxxxx/xxxxx/xxxxx/xxxxx/xxxxx", 1000, "rare");
+pattern("Square L", "xxxx/xxxx/xxxx/xxxx", 300, "rare");
+pattern("Square XL", "xxxxx/xxxxx/xxxxx/xxxxx/xxxxx", 1200, "rare");
 
+// Lines
 pattern("Line", "xxxx", 3, "uncommon");
-pattern("Column", "x/x/x/x", 3, "uncommon");
 pattern("Line L", "xxxxxx", 10, "uncommon");
+pattern("Line XXL", "xxxxxxxxx", 230, "rare");
+pattern("Column", "x/x/x/x", 3, "uncommon");
 pattern("Column L", "x/x/x/x/x/x", 10, "uncommon");
+pattern("Column XXL", "x/x/x/x/x/x/x/x/x", 230, "rare");
 
+// 2x3 | 3x2
+pattern("Rhode Island Z", "-xx/xx-", 14, "common");
+pattern("Cleveland Z", "xx-/-xx", 14, "common");
+pattern("Letter L", "x-/x-/xx", 14, "common");
+pattern("Letter C", "xx/x-/xx", 14, "uncommon");
+pattern("Thumbs Up", "-x/xx/xx", 14, "uncommon");
+
+// 3x3
 pattern("Plus", "-x-/xxx/-x-", 50, "common");
 pattern("Box", "xxx/x-x/xxx", 50, "common");
 pattern("Heli Pad", "x-x/xxx/x-x", 50, "common");
-pattern("Four", "x-x/xxx/--x", 50, "uncommon");
-pattern("T", "xxx/-x-/-x-", 50, "uncommon");
-pattern("B2", "xxx/-xx/--x", 75, "rare");
-pattern("R pentomino", "-xx/xx-/-x-", 75, "rare");
+pattern("T", "xxx/-x-/-x-", 70, "uncommon");
+pattern("Four", "x-x/xxx/--x", 70, "uncommon");
+pattern("B2", "xxx/-xx/--x", 90, "rare");
+pattern("R pentomino", "-xx/xx-/-x-", 90, "rare");
 
-pattern("Big I", "xxx/-x-/-x-/xxx", 100, "uncommon");
-pattern("Big G", "xxx/x--/x-x/xxx", 100, "uncommon");
-pattern("Big S", "xx/x-/xx/-x/xx", 140, "rare");
-pattern("Big E", "xx/x-/xx/x-/xx", 140, "rare");
+// Large
+pattern("Big I", "xxx/-x-/-x-/xxx", 400, "uncommon");
+pattern("Big G", "xxx/x--/x-x/xxx", 400, "uncommon");
+pattern("Big S", "xx/x-/xx/-x/xx", 170, "rare");
+pattern("Big E", "xx/x-/xx/x-/xx", 170, "rare");
 
+// Huge
 pattern("Pyramid", "--x--/-xxx-/xxxxx", 225, "uncommon");
-pattern("Pinwheel", "--x-/xxx-/-xxx/-x--", 350, "rare");
-pattern("Big Box", "xxxx/x--x/x--x/xxxx", 350, "rare");
-pattern("Noughts & Crosses", "-x-x-/xxxxx/-x-x-/xxxxx/-x-x-", 1500, "rare");
-
-pattern("Rhode Island Z", "-xx/xx-", 12, "common");
-pattern("Cleveland Z", "xx-/-xx", 12, "common");
-pattern("C", "xx/x-/xx", 12, "uncommon");
-pattern("L", "x-/x-/xx", 12, "common");
+pattern("Pinwheel", "--x-/xxx-/-xxx/-x--", 1500, "uncommon");
 
 // Bonuses
 
