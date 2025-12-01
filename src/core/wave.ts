@@ -511,7 +511,7 @@ export class Wave {
       return;
     }
     this.totalScore += this.score.total;
-    AchievementTracker.onGridScored(this, this.score);
+    AchievementTracker.get().onGridScored(this, this.score);
     this.frame++;
     if (
       this.frame < this.s.maxFrames &&

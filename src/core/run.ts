@@ -137,7 +137,7 @@ export class Run {
   constructor(readonly s: RunSettings, readonly level: string) {
     this.items = s.items.slice();
     this.items.sort((a, b) => a.priority - b.priority);
-    AchievementTracker.onRunStart(this);
+    AchievementTracker.get().onRunStart(this);
   }
 
   totalWaves(): number {
@@ -159,7 +159,7 @@ export class Run {
 
   forceWin(): RunOutcome {
     const outcome = new RunOutcome("win");
-    AchievementTracker.onRunEnd(this, outcome);
+    AchievementTracker.get().onRunEnd(this, outcome);
     return outcome;
   }
 
@@ -177,16 +177,16 @@ export class Run {
           const selectedItem = lastPhase.offers[lastPhase.selected];
           this.items.push(selectedItem);
           this.items.sort((a, b) => a.priority - b.priority);
-          AchievementTracker.onItemCollected(selectedItem);
+          AchievementTracker.get().onItemCollected(selectedItem);
         }
       } else if (lastPhase.phase == "wave") {
-        AchievementTracker.onWaveComplete(lastPhase);
+        AchievementTracker.get().onWaveComplete(lastPhase);
         if (lastPhase.status === "playing") {
           console.error("Wave is still playing -- treating as a win");
         }
         if (lastPhase.status === "lose") {
           const outcome = new RunOutcome("lose");
-          AchievementTracker.onRunEnd(this, outcome);
+          AchievementTracker.get().onRunEnd(this, outcome);
           return outcome;
         }
       }
@@ -195,7 +195,7 @@ export class Run {
     this.phaseIndex++;
     if (this.phaseIndex >= this.s.schedule.length) {
       const outcome = new RunOutcome("win");
-      AchievementTracker.onRunEnd(this, outcome);
+      AchievementTracker.get().onRunEnd(this, outcome);
       return outcome;
     }
     // Return next phase

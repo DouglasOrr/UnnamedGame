@@ -1502,7 +1502,7 @@ class MainMenuScene implements Scene {
             if (dest instanceof Object && "level" in dest) {
               if (
                 this.destinationLevel === "level_0" &&
-                AchievementTracker.stats().wavesCompleted === 0
+                AchievementTracker.get().stats().wavesCompleted === 0
               ) {
                 this.destination = "introduction";
               } else {
@@ -1519,7 +1519,7 @@ class MainMenuScene implements Scene {
     addButton("img/menu/trophy.png", "Achievements", "achievements");
     addButton("img/menu/settings.png", "Settings", "settings");
 
-    const stats = AchievementTracker.stats();
+    const stats = AchievementTracker.get().stats();
     for (const level of Object.values(R.Levels)) {
       const button = new Button(
         loadTexture(`img/level/${level.name}.png`),
@@ -1686,7 +1686,7 @@ class AchievementsScene implements Scene {
       }
       if (clickCount >= 3) {
         clickCount = 0;
-        AchievementTracker.reset();
+        AchievementTracker.get().reset();
         this.buildStatsElement(statsElement);
         this.buildAchievementList(listElement);
       } else {
@@ -1719,14 +1719,14 @@ class AchievementsScene implements Scene {
       const unlockDate = new Date(a.unlock);
       div.title = `Unlocked ${unlockDate.toDateString()} ${unlockDate.toLocaleTimeString()}`;
     } else {
-      const playerStats = AchievementTracker.stats();
+      const playerStats = AchievementTracker.get().stats();
       const titleParts: string[] = [];
       if (a.achievement.progress) {
         const progress = a.achievement.progress(playerStats);
         titleParts.push(`${(progress * 100).toFixed(0)}% complete`);
       }
       if (a.achievement.todo) {
-        let missing = a.achievement.todo(AchievementTracker.stats());
+        let missing = a.achievement.todo(AchievementTracker.get().stats());
         if (missing.length > 4) {
           missing = missing
             .slice(0, 4)
@@ -1741,7 +1741,7 @@ class AchievementsScene implements Scene {
 
   private buildAchievementList(element: HTMLElement): void {
     element.innerHTML = "";
-    const achievements = AchievementTracker.list();
+    const achievements = AchievementTracker.get().list();
     achievements.sort((a, b) => {
       const aUnlocked = a.unlock !== null;
       const bUnlocked = b.unlock !== null;
@@ -1759,9 +1759,9 @@ class AchievementsScene implements Scene {
 
   private buildStatsElement(element: HTMLElement): void {
     element.innerHTML = "";
-    const stats = AchievementTracker.stats();
+    const stats = AchievementTracker.get().stats();
     const runsAbandoned = stats.runsStarted - stats.runsWon - stats.runsLost;
-    const achievements = AchievementTracker.list();
+    const achievements = AchievementTracker.get().list();
     const unlockedCount = achievements.filter((a) => a.unlock !== null).length;
     const levelsWon = Object.entries(stats.levelsWon).filter(
       ([, wins]) => wins > 0
@@ -1997,7 +1997,7 @@ class Renderer {
 
     this.nextScene();
 
-    AchievementTracker.onUnlock = (achievement) => {
+    AchievementTracker.get().onUnlock = (achievement) => {
       this.achievementOverlay.onUnlock(achievement);
     };
 
@@ -2010,16 +2010,16 @@ class Renderer {
     // Ctrl+Alt+s to download run logs; Ctrl+Alt+o to reset
     document.addEventListener("keydown", (event) => {
       if (event.key === "o" && event.ctrlKey && event.altKey) {
-        A.RunLogs.reset();
+        A.RunLogs.get().reset();
         console.info("Run logs reset");
       }
       if (event.key === "s" && event.ctrlKey && event.altKey) {
         event.preventDefault();
-        if (A.RunLogs.logs.length === 0) {
+        if (A.RunLogs.get().logs.length === 0) {
           console.info("No run logs to download yet");
         } else {
           const url = URL.createObjectURL(
-            new Blob([JSON.stringify(A.RunLogs.logs)], {
+            new Blob([JSON.stringify(A.RunLogs.get().logs)], {
               type: "application/json",
             })
           );

@@ -43,11 +43,11 @@ class RunLog {
 
 const RUN_LOGS_KEY = "run_logs";
 
-class RunLogsImpl {
+export class RunLogs {
   logs: object[] = [];
 
   constructor() {
-    this.logs = RunLogsImpl.load();
+    this.logs = RunLogs.load();
   }
 
   static load(): RunLog[] {
@@ -79,8 +79,18 @@ class RunLogsImpl {
     this.logs.push(log.record);
     this.save();
   }
+
+  // Singleton Access
+
+  static impl: RunLogs | null = null;
+
+  static get(): RunLogs {
+    if (RunLogs.impl === null) {
+      RunLogs.impl = new RunLogs();
+    }
+    return RunLogs.impl;
+  }
 }
-export const RunLogs = new RunLogsImpl();
 
 // Achievements
 
@@ -374,7 +384,7 @@ export type AchievementState = {
   unlock: number | null;
 };
 
-class AchievementTrackerImpl {
+export class AchievementTracker {
   private playerStats: PlayerStats = new PlayerStats();
   private unlocks: Record<string, number> = {};
   private runStats: RunStats | null = null;
@@ -445,7 +455,7 @@ class AchievementTrackerImpl {
     this.checkAchievements();
     this.runStats = null;
     if (this.currentRunLog) {
-      RunLogs.add(this.currentRunLog);
+      RunLogs.get().add(this.currentRunLog);
       this.currentRunLog = null;
     }
   }
@@ -527,9 +537,18 @@ class AchievementTrackerImpl {
     }
     return result;
   }
-}
 
-export const AchievementTracker = new AchievementTrackerImpl();
+  // Singleton Access
+
+  static impl: AchievementTracker | null = null;
+
+  static get(): AchievementTracker {
+    if (AchievementTracker.impl === null) {
+      AchievementTracker.impl = new AchievementTracker();
+    }
+    return AchievementTracker.impl;
+  }
+}
 
 export function setItemsAndLevels(
   items: Record<string, W.Item>,
