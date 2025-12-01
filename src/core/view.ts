@@ -176,7 +176,7 @@ class Tooltip {
     content?: () => string,
     position?: [number, number]
   ): void {
-    const rightMarginPx = 100;
+    const EdgeMarginPx = 100;
     const [mouseX, mouseY] = this.mouse.position;
     const shown =
       when === true
@@ -200,7 +200,8 @@ class Tooltip {
         tipY += offset;
       }
       const bounds = this.canvas.getBoundingClientRect();
-      tipX = Math.min(tipX, bounds.right - rightMarginPx);
+      tipX = Math.min(tipX, bounds.right - EdgeMarginPx);
+      tipY = Math.min(tipY, bounds.bottom - EdgeMarginPx);
       this.element.style.left = `${tipX}px`;
       this.element.style.top = `${tipY}px`;
       this.elementTag = tag;

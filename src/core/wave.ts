@@ -1,5 +1,11 @@
 import { AchievementTracker } from "./achievements";
 
+let DEV_MODE = false;
+
+export function setDevMode(enabled: boolean): void {
+  DEV_MODE = enabled;
+}
+
 /**
  * Single cell type: empty, filled or wildcard.
  */
@@ -433,6 +439,9 @@ export class Wave {
   }
 
   get status(): "playing" | "win" | "lose" {
+    if (DEV_MODE) {
+      return this.frame < this.s.maxFrames ? "playing" : "win";
+    }
     if (
       this.frame >= this.s.maxFrames ||
       this.totalScore >= this.s.targetScore
@@ -504,7 +513,10 @@ export class Wave {
     this.totalScore += this.score.total;
     AchievementTracker.onGridScored(this, this.score);
     this.frame++;
-    if (this.frame < this.s.maxFrames && this.totalScore < this.s.targetScore) {
+    if (
+      this.frame < this.s.maxFrames &&
+      (DEV_MODE || this.totalScore < this.s.targetScore)
+    ) {
       this.roll = -1;
       this.reroll();
     }

@@ -4,10 +4,14 @@ import * as R from "./core/run";
 import "./core/sound";
 import * as V from "./core/view";
 import "./static/style.css";
+import * as W from "./core/wave";
 
 window.onload = () => {
-  // A.AchievementTracker.reset();
   A.setItemsAndLevels(Items, R.Levels);
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("dev") === "true") {
+    W.setDevMode(true);
+  }
   V.start({
     skipTo: null,
     // skipTo: "introduction",
